@@ -1,0 +1,30 @@
+{
+  "name": "glycresoft_electron",
+  "version": "0.0.1",
+  "description": "",
+  "main": "app/index.js",
+  "private": true,
+  "scripts": {
+    "include-server": "bash -c \"mkdir dist/win-unpacked/resources/bin && cp -r server/win64/glycresoft-cli dist/win-unpacked/resources/bin\"",
+    "start": "npm install && npm run compile && electron ./app",
+    "clean": "rimraf dist",
+    "clean:win": "rimraf dist/win",
+    "compile": "echo compiling",
+    "pack": "npm run compile && build --win dir",
+    "dist": "npm run compile && build",
+    "release": "npm run compile && build",
+    "dist:win64": "./node_modules/.bin/build --platform win32 --arch x64"
+  },
+  "build": {},
+  "dependencies": {
+    "localforage": "^1.4.2",
+    "rimraf": "^2.5.2"
+  },
+  "devDependencies": {
+    "electron-builder": "^5.7.0",
+    "electron-packager": "^7.1.0",
+    "electron-prebuilt": "^1.2.5",
+    "electron-winstaller": "^2.3.1",
+    "winresourcer": "^0.9.0"
+  }
+}

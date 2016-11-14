@@ -1,0 +1,78 @@
+<!DOCTYPE html5>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link href='../css/bundle.css' rel='stylesheet'>
+    <script type="text/javascript">
+        "use strict"
+        const rimraf = require("rimraf")
+        const $ = require("../js/jquery")
+        const _ = require("../js/lodash")
+        const ProjectSelectionViewControl = require("../../project/project-render")
+        var Controller = null
+        $(function(){
+            Controller = new ProjectSelectionViewControl($("#project-selection-view"))
+        })
+
+    </script>
+
+</head>
+<body>
+    <div class='navbar-fixed'>
+        <nav class='indigo lighten-2'>
+            <div class="nav-wrapper">
+              &nbsp;&nbsp;<a class="brand-logo">GlycReSoft</a>
+            </div>
+        </nav>
+    </div>
+    <div id='project-selection-view' class='container'>
+        <div class='row'>
+        <p>
+
+        </p>
+        </div>
+        <div class='row' id='load-existing-project-container'>
+            <div class="input-field col s8">
+                <h3>Select A Project</h3>
+                <select id='existing-project'  name="existing-project" class='browser-default'>
+                </select>
+                <div id='existing-project-container'></div>
+                <br>
+                <button class='btn' id='load-existing-btn'>
+                    Load
+                </button>
+                <button class='btn' id='delete-existing-btn'>
+                    Delete
+                </button>
+            <br>
+            <h4>Or</h4>
+            </div>
+        </div>
+        <div class="row">
+            <h3>Create A New Project or Open External</h3>
+            <div class="input-field col s8">
+                <label for="project-name">Project Name</label>
+                <br>
+                <input id='project-name' name="project-name" type="text" class="validate">
+            </div>
+        </div>
+        <div class='row'>
+            <div class='col s8'>
+                <div class="file-field input-field">
+                    <h6>Project Directory</h6>
+                    <div class="btn" id='project-location-btn'>
+                        Select Project Location
+                    </div>
+                    <input id='project-location-path' class="file-path validate" type="text"/>
+                </div>
+            <br>
+            <button class='btn' id='create-project-btn'>
+                Create
+            </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
