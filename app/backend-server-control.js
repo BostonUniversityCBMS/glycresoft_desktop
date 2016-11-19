@@ -31,12 +31,12 @@ function BackendServerControl(project, options){
         let self = this
         GetNextPortAsync((err, port) => {
             self.port = port
-            self.url = "http://localhost:" + this.port
+            self.url = "http://127.0.0.1:" + this.port
         })
     } else {
         this.port = options.port
     }
-    this.host = options.host === undefined ? "localhost" : options.host
+    this.host = options.host === undefined ? "127.0.0.1" : options.host
     this.protocol = options.protocol === undefined ? "http:" : options.protocol
     this.terminateCallback = options.callback === undefined ? function(){} : options.callback
     this.url = null
@@ -61,7 +61,7 @@ BackendServerControl.prototype.launchServer = function(callback, n){
     // Guard against unavailable ports
     if(this.port === undefined){
         let self = this
-        setTimeout(() => self.launchServer(callback, n + 1), 250)
+        setTimeout(() => self.launchServer(callback, n + 1), 1250)
     } else {
         console.log(this.constructServerProcessCall())
         let child = child_process.exec(this.constructServerProcessCall())
