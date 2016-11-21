@@ -48,7 +48,7 @@ class ServerConfigCache {
         if(hasServerExecutableInResources){
             this._serverExecutable = this.executablePath
         } else {
-            this._serverExecutable = "glycresoft-"       
+            this._serverExecutable = "glycresoft"       
         }
         return this._serverExecutable;
     }
@@ -70,7 +70,7 @@ const GetNextPortAsync = portfinder.getPort
 
 
 function TerminateServer(port){
-    http.request({host:"localhost", "port": port, path: "/internal/shutdown", method: "POST"}).end()
+    http.request({host:"127.0.0.1", "port": port, path: "/internal/shutdown", method: "POST"}).end()
 }
 
 module.exports = {
