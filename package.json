@@ -1,6 +1,6 @@
 {
-  "name": "glycresoft_electron",
-  "version": "0.0.3",
+  "name": "GlycReSoft",
+  "version": "0.0.4",
   "description": "",
   "main": "app/index.js",
   "private": true,

@@ -1,5 +1,5 @@
 {
-  "name": "glycresoft_electron",
+  "name": "GlycReSoft",
   "dependencies": {
     "electron-squirrel-startup": "^1.0.0",
     "hammerjs": "^2.0.8",
@@ -9,9 +9,9 @@
     "rimraf": "^2.5.2"
   },
   "description": "GlycReSoft",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "./index.js",
   "private": true,
-  "author": "JK",
+  "author": "Joshua Klein, Center for Biomedical Mass Spectrometry, Program for Bioinformatics, Boston University",
   "license": "ISC"
 }
