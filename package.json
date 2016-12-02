@@ -15,7 +15,14 @@
     "release": "npm run compile && build",
     "dist:win64": "./node_modules/.bin/build --platform win32 --arch x64"
   },
-  "build": {},
+  "build": {
+    "win": {
+      "icon": "img/logo.ico"
+    },
+    "squirrelWindows": {
+      "iconUrl": "https://raw.githubusercontent.com/mobiusklein/glycresoft_desktop/master/img/logo.ico"
+    }
+  },
   "dependencies": {
     "localforage": "^1.4.2",
     "rimraf": "^2.5.2"
