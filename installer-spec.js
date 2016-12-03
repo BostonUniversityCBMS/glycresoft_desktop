@@ -5,7 +5,10 @@ resultPromise = electronInstaller.createWindowsInstaller({
     outputDirectory: 'dist/winstaller64',
     authors: 'Joshua Klein, Center for Biomedical Mass Spectrometry, Program for Bioinformatics, Boston University',
     exe: 'GlycReSoft.exe',
-    iconUrl: "https://raw.githubusercontent.com/mobiusklein/glycresoft_desktop/master/img/logo.ico"
+    iconUrl: "https://raw.githubusercontent.com/mobiusklein/glycresoft_desktop/master/img/logo.ico",
+    setupIcon: "img/logo.ico",
+    setupExe: "GlycReSoft_Setup.exe",
+    noMsi: true
   });
 
 resultPromise.then(() => console.log("It worked!"), (e) => console.log(`No dice: ${e.message}`));
