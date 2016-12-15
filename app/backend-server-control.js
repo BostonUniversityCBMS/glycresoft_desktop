@@ -8,6 +8,7 @@ const child_process = require("child_process")
 
 const electron = require("electron")
 const app = electron.app
+const ipcMain = electron.ipcMain
 
 const WINDOW_OPTIONS = {
     "title": "GlycReSoft",
@@ -47,9 +48,11 @@ function BackendServerControl(project, options){
 BackendServerControl.EXECUTABLE = EXECUTABLE
 BackendServerControl.prototype.EXECUTABLE = EXECUTABLE
 
+
 BackendServerControl.prototype.constructServerProcessCall = function(){
     return (this.EXECUTABLE + "\"" + this.project.storePath + "\" --port " + this.port + " -b \"" + this.project.path + "\"")
 }
+
 
 BackendServerControl.prototype.launchServer = function(callback, n){
     if (n === undefined) {
@@ -98,9 +101,49 @@ BackendServerControl.prototype.configureTerminationBehavior = function(){
 
 BackendServerControl.prototype.openWindow = function(){
     this.window = new electron.BrowserWindow(WINDOW_OPTIONS)
-    // this.window.webContents.openDevTools()
     this.window.loadURL(this.url)
     this.window.maximize()
+    ipcMain.on("openDevTools", (event) => this.window.webContents.openDevTools())
+    var self = this
+    this.window.webContents.on("dom-ready", function(){
+        //Set up SVG to PNG Export on Right-click of SVG Graphics
+        self.window.webContents.executeJavaScript(`$('body').delegate('svg', 'contextmenu', function(e){
+            var SVGSaver,
+              bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+
+            SVGSaver = (function() {
+              function SVGSaver(svgElement) {
+                this.svgElement = svgElement;
+                this.draw = bind(this.draw, this);
+                this.canvas = $("<canvas></canvas>")[0];
+                this.img = $("<img>");
+                this.canvas.height = this.svgElement.height();
+                this.canvas.width = this.svgElement.width();
+              }
+
+              SVGSaver.prototype.draw = function() {
+                var ctx, xml;
+                xml = new XMLSerializer().serializeToString(this.svgElement[0]);
+                this.img.attr("src", "data:image/svg+xml;base64," + btoa(xml));
+                ctx = this.canvas.getContext('2d');
+                return ctx.drawImage(this.img[0], 0, 0);
+              };
+
+              return SVGSaver;
+
+            })();
+            const saver = new SVGSaver($(this))
+            saver.draw()
+            const uri = saver.canvas.toDataURL()
+            const webContents = require('electron').remote.webContents
+            const activeContents = webContents.getFocusedWebContents()
+            
+            if(activeContents === null){
+                return
+            }
+            activeContents.downloadURL(uri)
+        })`)
+    })
 }
 
 

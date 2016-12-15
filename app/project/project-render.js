@@ -27,6 +27,11 @@ function selectDirectory(callback){
 }
 
 
+function openDevTools(){
+    ipcRenderer.send("openDevTools")
+}
+
+
 class ProjectSelectionViewControl{
     constructor(handle){
         this.handle = handle
@@ -40,6 +45,7 @@ class ProjectSelectionViewControl{
                 $("#project-location-path").val(directory)
             })
         })
+        $("#logo").click(openDevTools)
         self.updateProjectDisplay()
 
     }

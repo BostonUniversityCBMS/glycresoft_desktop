@@ -29,6 +29,7 @@ function projectFromObject(obj){
     return new Project(obj)
 }
 
+
 class ProjectSelectionWindow {
     constructor(managedWindow){
         this.controllers = []
@@ -88,6 +89,7 @@ class ProjectSelectionWindow {
         this._setupWindowCloseBehavior()
         this.hidden = false
         this.terminated = false
+
     }
 
     _registerIPCHandlers(){
@@ -96,6 +98,7 @@ class ProjectSelectionWindow {
         ipcMain.on("deleteProject", (event, data) => self.deleteProject(event, data))
         ipcMain.on("openProject", (event, data) => self.openProject(event, data))
         ipcMain.on("SelectProjectDirectory", (event) => self._selectProjectDirectory(event))
+        ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
     }
 
     _selectProjectDirectory(event){

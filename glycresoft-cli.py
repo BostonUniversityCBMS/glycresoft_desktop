@@ -6,6 +6,9 @@ except:
 import multiprocessing
 from brainpy._c import composition, isotopic_constants, double_vector, isotopic_distribution
 from ms_peak_picker._c import double_vector
+from rdflib.plugins import stores
+from rdflib.plugins.stores import sparqlstore
+
 import ms_deisotope
 from ms_deisotope._c import averagine, scoring, deconvoluter_base
 import glypy
