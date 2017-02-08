@@ -43,10 +43,14 @@ function setPortPersistent(portValue){
 
 function getPortPersistent(callback){
     storage.get(PORT_STORAGE_KEY, (err, value) => {
-        console.log("Loaded Port Number", value)
         if (err) {
             console.log(err)
         }
+        if (value === undefined || value === null || value == "" || _.isEqual(value, {})) {
+            value = 8001
+            setPortPersistent(value)
+        }
+        console.log("Loaded Port Number", value)
         callback(value)
     })
 }
@@ -74,18 +78,11 @@ class ProjectSelectionViewControl{
 
         getPortPersistent((value) => {
             console.log("Port", value)
-            if (value === undefined || value === null || value == "") {
-                value = 8001
-            }
             $("#application-port-entry").val(value)
             ipcRenderer.send("updatePort", value)
         })
 
         self.updateProjectDisplay()
-    }
-
-    updatePort() {
-
     }
 
     deleteProject(){
