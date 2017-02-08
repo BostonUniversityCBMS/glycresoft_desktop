@@ -23,7 +23,7 @@ const {
 
 const ProjectSession = require("./project-session")
 
-const BackendServerControl = require("../backend-server-control")
+const BackendServerController = require("../backend-server-control")
 
 const fs = require('fs')
 const rimraf = require("rimraf")
@@ -39,7 +39,7 @@ class ProjectSelectionWindow {
     constructor(managedWindow, options){
         this.backendServers = []
         this.projects = []
-        this.activeSessions = []
+        this.activeSessions = new Map()
 
         this.options = options || {}
 
@@ -80,19 +80,31 @@ class ProjectSelectionWindow {
             callback: terminateCallback,
         }
 
-        let server = new BackendServerControl(project, serverOptions)
+        let server = new BackendServerController(project, serverOptions)
         return server
     }
 
+    /**
+     * Creates a new {BackendServerController} instance and
+     * adds it to this object's `backendServers` list.
+     * @param  {Project}
+     * @return {BackendServerController}
+     */
     createServer(project){
         let server = this._createNewServer(project)
         this.backendServers.push(server)
         return server
     }
 
-
+    /**
+     * Creates a new {ProjectSession} instance associated with this
+     * object's default {BackendServerController}. This session is
+     * opened and added to `activeSessions`.
+     * @param  {Project}
+     */
     openWindowFor(project){
         let server = null
+        let self = this
         if (this.defaultServer === undefined) {
             server = this.createServer(project)
         } else {
@@ -100,15 +112,34 @@ class ProjectSelectionWindow {
         }
 
         let session = new ProjectSession(project, server)
-        console.log("Created new ProjectSession", session)
 
-        function callback(){
-            console.log("openWindowFor callback")
+        function callback(projectSession){
+            projectSession.window.on("closed", function(event) {
+                self.removeSession(projectSession)
+                if(self.terminated) {
+                    self.shutdownIfAllSessionsClosed()
+                }
+            })
         }
 
         session.openWindow(callback)
+        this.activeSessions.set(session.instanceId, session)
     }
 
+
+    removeSession(session){
+        console.log("Removing Session from Active Session Map", session.instanceId)
+        this.activeSessions.delete(session.instanceId)
+    }
+
+    shutdownIfAllSessionsClosed() {
+        if (this.activeSessions.size == 0) {
+            this.cleanUpServers()
+            this._reallyQuit()
+            return true
+        }
+        return false
+    }
 
     cleanUpServers(){
         console.log("Cleaning up servers", this.backendServers.length)
@@ -124,10 +155,10 @@ class ProjectSelectionWindow {
             console.log("Closing ProjectSelectionWindow")
             self.terminated = true
             self.window = null
-            console.log(`${self.backendServers.length} backendServers still active`)
+            console.log(`${self.activeSessions.size} sessions still active`)
             // There are no other tasks open, so we can terminate completely.
-            if(self.backendServers.length === 0){
-                self._reallyQuit()
+            if (!self.shutdownIfAllSessionsClosed()) {
+                console.log("Active sessions remaining. Cannot Quit")
             }
         })
     }
@@ -187,14 +218,12 @@ class ProjectSelectionWindow {
         console.log(project)
         _RemoveProject(project, () => self.updateProjectDisplay(event))
         rimraf(project.path, function(){
-            //self.updateProjectDisplay(event)
+            self.updateProjectDisplay(event)
         })
     }
 
     createWindowForProject(project) {
         this.openWindowFor(project)
-        // this.backendServers.push(BackendServerControl.launch(
-        //     project, {callback: this.dropBackendController.bind(this)}))
     }
 
     createProject(event, obj){
@@ -208,7 +237,6 @@ class ProjectSelectionWindow {
     }
 
     dropBackendController(server){
-        // console.log("dropBackendController", server.project)
         var ix = -1;
         for(var i = 0; i < this.backendServers.length; i++){
             if(this.backendServers[i].port === server.port){

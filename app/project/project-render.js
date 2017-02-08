@@ -78,6 +78,7 @@ class ProjectSelectionViewControl{
                 value = 8001
             }
             $("#application-port-entry").val(value)
+            ipcRenderer.send("updatePort", value)
         })
 
         self.updateProjectDisplay()

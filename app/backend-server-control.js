@@ -1,22 +1,11 @@
 "use strict"
 
-const {GetNextPort, GetNextPortAsync, TerminateServer} = require("./server-config")
+const {GetNextPort, GetNextPortAsync} = require("./server-config")
 
 const http = require("http")
 const querystring = require("querystring")
 const path = require('path')
 const child_process = require("child_process")
-
-const electron = require("electron")
-const app = electron.app
-const ipcMain = electron.ipcMain
-
-const WINDOW_OPTIONS = {
-    "title": "GlycReSoft",
-    "webPreferences": {
-        "preload": path.join(__dirname, "static/js/preload.js")
-    }
-}
 
 const serverConfig = require("./server-config").configManager
 
@@ -25,8 +14,10 @@ var EXECUTABLE = "\"" + serverConfig.serverExecutable + '" server '
 console.log(EXECUTABLE)
 
 
+const MAX_RETRIES = 600;
 
-class BackendServerControl {
+
+class BackendServerController {
     constructor(project, options) {
         options = options === undefined ? {} : options;
         this.project = project
@@ -49,6 +40,19 @@ class BackendServerControl {
         console.log("Server Setup: ", this.host, this.port, this.url)
         this.terminateCallback = options.callback === undefined ? function(){} : options.callback
         this.process = null
+        this.sessionCounter = 0
+    }
+
+    addSession(session) {
+        this.sessionCounter += 1
+    }
+
+    removeSession(session) {
+        this.sessionCounter -= 1
+    }
+
+    get hasNoSessions() {
+        this.sessionCounter <= 0
     }
 
     get hasStartedProcess() {
@@ -62,6 +66,7 @@ class BackendServerControl {
     }
 
     launchServer(callback, n) {
+        console.log("Attempting to launch server with url ", this.url)
         if (n === undefined) {
             n = 0
         }
@@ -76,11 +81,12 @@ class BackendServerControl {
             console.log(this.constructServerProcessCall())
             let child = child_process.exec(this.constructServerProcessCall())
             child.stdout.on("data", function(){
-                console.log(arguments[0])
+                console.log(arguments[0].trim())
             })
             child.stderr.on("data", function(){
-                console.log(arguments[0])
+                console.log(arguments[0].trim())
             })
+            console.log("Server Launched")
             this.process = child
             callback()
         }
@@ -143,50 +149,17 @@ class BackendServerControl {
         req.end();
     }
 
-    navigateOnReady(count, windowConfig, callback) {
-        var url = this.url
-        var self = this
-        count = count === undefined ? 1 : count + 1;
-        if(count > 600){
-            throw new Error("Server Not Ready After " + count + " Tries")
-        }
-        console.log("Calling navigateOnReady with", count, url)
-        http.get(self.url, function(response){
-            var retry = false
-            if(response.statusCode == 200){
-                console.log(self.url)
-                try{
-                    self.openWindow(windowConfig)
-                    if(callback !== undefined){
-                        callback(self)
-                    }                
-                } catch(error){
-                    retry = true
-                    console.log(error)
-                }
-            } else {
-                retry = true
-            }
-            if(retry){
-                self.navigateOnReady(count, windowConfig, callback)
-            }
-        }).on('error', function(e) {
-            console.log(e)
-            setTimeout(function(){self.navigateOnReady(count, windowConfig, callback)}, 150)
-        });
-    }
-
     waitForServer(count, callback){
         var url = this.url
         var self = this
         count = count === undefined ? 1 : count + 1;
-        if(count > 600){
+        if(count > MAX_RETRIES){
             throw new Error("Server Not Ready After " + count + " Tries")
         }
         http.get(self.url, function(response){
             var retry = false
             if(response.statusCode == 200){
-                console.log(self.url)
+                console.log("Connection Established", self.url)
                 try{
                     if(callback !== undefined){
                         callback(self)
@@ -202,13 +175,13 @@ class BackendServerControl {
                 self.waitForServer(count, callback)
             }
         }).on('error', function(e) {
-            console.log(e)
+            console.log("Waiting For Server... ", count)
             setTimeout(function(){self.waitForServer(count, callback)}, 150)
         });
     }
 
     terminateServer() {
-        console.log("Terminating ", this.url)
+        console.log("Terminating ", this.url, this.sessionCounter, this.process.pid)
         let rq = http.request({host:this.host, "port": this.port, protocol: this.protocol,
                                path: "/internal/shutdown", method: "POST"})
         rq.on("data", function(data){
@@ -222,9 +195,9 @@ class BackendServerControl {
 }
 
 
-BackendServerControl.EXECUTABLE = EXECUTABLE
-BackendServerControl.prototype.EXECUTABLE = EXECUTABLE
+BackendServerController.EXECUTABLE = EXECUTABLE
+BackendServerController.prototype.EXECUTABLE = EXECUTABLE
 
 
-module.exports = BackendServerControl
+module.exports = BackendServerController
     

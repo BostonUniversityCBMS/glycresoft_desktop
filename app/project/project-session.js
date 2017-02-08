@@ -5,7 +5,9 @@ const child_process = require("child_process")
 
 const electron = require("electron")
 const app = electron.app
+const dialog = electron.dialog
 const ipcMain = electron.ipcMain
+const net = electron.net
 
 const WINDOW_OPTIONS = {
     "title": "GlycReSoft",
@@ -15,24 +17,86 @@ const WINDOW_OPTIONS = {
 }
 
 
+let SESSION_COUNTER = 1
+
+
 class ProjectSession {
 
     constructor(project, backendServer, options){
         options = options === undefined ? {} : options
+
+        //Guarantee unique ID
+        this.instanceId = SESSION_COUNTER;
+        SESSION_COUNTER++;
 
         this.project = project
         this.backendServer = backendServer
         this.options = options
         this.window = null
         this.sessionId = options.sessionId
+        this.checkIfClose = true
     }
 
     get url(){
         return this.backendServer.url
     }
 
+    request(options) {
+        try{
+            options.session = this.window.webContents.session
+        } catch (err) {
+
+        }
+        return new net.ClientRequest(options)
+    }
+
+    pendingTasks(callback){
+        let options = {
+            url: `${this.url}/api/tasks`,
+        }
+        let request = this.request(options)
+        let buffer = []
+        request.on("response", (response) => {
+            response.on("data", (chunk) => {
+                buffer.push(chunk)
+            })
+            response.on("end", () => {
+                let result = JSON.parse(buffer.join(""))
+                if(callback !== undefined) {
+                    callback(result)
+                }
+            })            
+        })
+        request.end()
+    }
+
+    endTasks(callback){
+        let options = {
+            url: `${this.url}/internal/end_tasks`,
+            method: "post"
+        }
+        let request = this.request(options)
+        let buffer = []
+        request.on("response", (response) => {
+            response.on("data", (chunk) => {
+                buffer.push(chunk)
+            })
+            response.on("end", () => {
+                if(callback !== undefined) {
+                    callback(buffer.join(""))
+                }
+            })            
+        })
+        request.end()
+    }
+
+    reallyQuit() {
+        this.checkIfClose = false
+        this.window.close()
+    }
+
     createWindow(windowConfig, callback) {
-        const self = this
+        let self = this
         if (windowConfig.projectBackendId === undefined) {
             this.sessionId = 0
         } else {
@@ -44,18 +108,63 @@ class ProjectSession {
             "name": "project_id",
             "value": this.sessionId.toString()
         }
-        console.log("Setting Cookie", cookie)
+        this.checkIfClose = true
         this.window.webContents.session.cookies.set(cookie, (error) => {
             if (error) {
                 console.log("Error while setting cookie", error)
             }
             self.window.loadURL(self.url)
             self.window.maximize()
-            ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
-            console.log("windowConfig", windowConfig, "callback", callback)
+
+            ipcMain.on("openDevTools", (event) => {
+                if(self.window !== null){
+                    self.window.webContents.openDevTools()
+                }
+            })
+
             if (callback !== undefined) {
                 callback(self)
             }
+            this.window.on("close", function(e) {
+                console.log((`Preparing to close Window For Project "${self.project.path}" ` +
+                             `with session id ${self.sessionId} with checkIfClose value ` +
+                             `${self.checkIfClose}`))
+                if (self.checkIfClose) {
+                    e.preventDefault()
+
+                    self.pendingTasks((tasks) => {
+                        let keys = Object.keys(tasks)
+                        if(keys.length > 0) {                
+                            dialog.showMessageBox(self.window, {
+                                "title": "Close With Pending Tasks",
+                                "type": "question",
+                                "message": `
+                            This window may close, but any pending tasks waiting to run will
+                            continue running until all windows are closed and the application
+                            completely shuts down.`,
+                                "buttons": ["Okay", "Cancel", "Stop Tasks"],
+                            },
+                            (response) => {
+                                console.log("Choice", response)
+                                if(response == 2) {
+                                    self.endTasks()
+                                }
+                                if(response == 0 || response == 2) {
+                                    self.reallyQuit()
+                                }
+                            })
+                        } else {
+                            console.log("No tasks pending. Quit right away.")
+                            self.reallyQuit()
+                        }
+                    })
+                }
+            })
+        })
+
+        this.window.on("closed", (e) => {
+            self.backendServer.removeSession(self);
+            self.window = null
         })
 
         this.window.webContents.on("dom-ready", function(){
@@ -100,14 +209,14 @@ class ProjectSession {
     }
 
     openWindow(callback) {
-        console.log("callback", callback)
         var self = this
 
         let task = () => {
+            console.log("Registering Session")
             self.backendServer.registerProjectSession(self.project, (registration) => {
                 let windowConfig = {}
                 windowConfig.projectBackendId = registration.project_id
-                console.log("Response from registerProjectSession", windowConfig, callback)
+                self.backendServer.addSession(self)
                 self.createWindow(windowConfig, callback)
             })
         }
@@ -115,6 +224,7 @@ class ProjectSession {
         if(this.backendServer.hasStartedProcess) {
             task()
         } else {
+            console.log("Launching server.")
             this.backendServer.launchServer(() => {
                 self.backendServer.waitForServer(0, () => {
                     task()
@@ -123,6 +233,5 @@ class ProjectSession {
         }
     }
 }
-
 
 module.exports = ProjectSession
