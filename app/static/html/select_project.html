@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title></title>
     <link href='../css/bundle.css' rel='stylesheet'>
+    <script src="../js/jquery.js"></script>
     <script type="text/javascript">
         "use strict"
         const rimraf = require("rimraf")
@@ -14,8 +15,18 @@
         var Controller = null
         $(function(){
             Controller = new ProjectSelectionViewControl($("#project-selection-view"))
+            $("#config-options").hide()
+            $("#config-heading").click((event) => {
+                let toggleDisplay = $("#config-heading .toggle")
+                if (toggleDisplay.text() == "[+]") {
+                    $("#config-options").show()
+                    toggleDisplay.text("[-]")
+                } else {
+                    $("#config-options").hide()
+                    toggleDisplay.text("[+]")
+                }
+            })
         })
-
     </script>
 
 </head>
@@ -28,10 +39,19 @@
         </nav>
     </div>
     <div id='project-selection-view' class='container'>
+        <div class="row">
+        </div>
         <div class='row'>
-        <p>
-
-        </p>
+            <h5 id='config-heading'>Configuration <span class='toggle'>[+]</span></h5>
+            <div id='config-options'>
+                <div class="input-field col s5">
+                    <label for='application-port-entry'>Application Server Port</label>
+                    <br>
+                    <input type="number" name="application-port-entry" id="application-port-entry"
+                           value="8001" min="0" max="65535" step="1" class='validate'
+                           placeholder='HTTP Port to run Application Under'/>
+                </div>
+            </div>
         </div>
         <div class='row' id='load-existing-project-container'>
             <div class="input-field col s8">

@@ -11,6 +11,8 @@ const project = require("./project")
 const serverConfig = require("./server-config")
 const BackendServerControl = require("./backend-server-control")
 
+app.BackendServerControl = BackendServerControl
+
 let ProjectSelectionController = null
 
 
@@ -32,7 +34,7 @@ function showProjectManager(callback){
 function createProjectManager() {
     if(ProjectSelectionController === null){
         ProjectSelectionController = new project.ProjectSelectionWindow()
-        // ProjectSelectionController.window.webContents.openDevTools()
+        app.ProjectSelectionController = ProjectSelectionController
     }
 }
 

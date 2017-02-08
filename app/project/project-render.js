@@ -3,6 +3,7 @@
 const $ = require("../static/js/jquery")
 const _ = require("../static/js/lodash")
 
+const storage = require("electron-json-storage")
 const projectStorage = require("./project-storage")
 const Project = require("./project")
 const LoadAllProjects = projectStorage.LoadAllProjects
@@ -32,10 +33,29 @@ function openDevTools(){
 }
 
 
+const PORT_STORAGE_KEY = "GLYCRESOFT-PORT"
+
+
+function setPortPersistent(portValue){
+    storage.set(PORT_STORAGE_KEY, portValue)
+}
+
+
+function getPortPersistent(callback){
+    storage.get(PORT_STORAGE_KEY, (err, value) => {
+        console.log("Loaded Port Number", value)
+        if (err) {
+            console.log(err)
+        }
+        callback(value)
+    })
+}
+
+
 class ProjectSelectionViewControl{
     constructor(handle){
-        this.handle = handle
         let self = this
+        this.handle = handle
         self.projects = []
         $("#create-project-btn").click(function(){self.createProject()})
         $("#delete-existing-btn").click(function(){self.deleteProject()})
@@ -46,7 +66,24 @@ class ProjectSelectionViewControl{
             })
         })
         $("#logo").click(openDevTools)
+        $("#application-port-entry").change(function(event) {
+            console.log("Updating Port", this.value)
+            setPortPersistent(this.value)
+            ipcRenderer.send("updatePort", this.value)
+        })
+
+        getPortPersistent((value) => {
+            console.log("Port", value)
+            if (value === undefined || value === null || value == "") {
+                value = 8001
+            }
+            $("#application-port-entry").val(value)
+        })
+
         self.updateProjectDisplay()
+    }
+
+    updatePort() {
 
     }
 

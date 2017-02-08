@@ -8,6 +8,8 @@ const ipcMain = electron.ipcMain
 
 const Project = require("./project")
 
+const storage = require("electron-json-storage")
+
 const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
 
 const {
@@ -17,6 +19,9 @@ const {
     _RemoveProject,
     makeNewProjectDirectory
 } = require("./project-storage")
+
+
+const ProjectSession = require("./project-session")
 
 const BackendServerControl = require("../backend-server-control")
 
@@ -31,15 +36,21 @@ function projectFromObject(obj){
 
 
 class ProjectSelectionWindow {
-    constructor(managedWindow){
-        this.controllers = []
+    constructor(managedWindow, options){
+        this.backendServers = []
         this.projects = []
+        this.activeSessions = []
+
+        this.options = options || {}
+
+        let self = this
+
         this.window = null
         this.setupWindow()
         this._registerIPCHandlers()
         this.hidden = false
         this.terminated = false
-        let self = this
+
         LoadAllProjects(function(projects){
             self.projects = projects
         })
@@ -50,10 +61,59 @@ class ProjectSelectionWindow {
         })
     }
 
+
+    get defaultServer(){
+        return this.backendServers[0]
+    }
+
+    _createNewServer(project){
+        let serverPort = this.options.port || 8001
+
+        let terminateCallback = function(){
+            console.log("Create Server callback")
+        }
+
+        let serverOptions = {
+            port: serverPort,
+            host: "127.0.0.1",
+            protocol: "http:",
+            callback: terminateCallback,
+        }
+
+        let server = new BackendServerControl(project, serverOptions)
+        return server
+    }
+
+    createServer(project){
+        let server = this._createNewServer(project)
+        this.backendServers.push(server)
+        return server
+    }
+
+
+    openWindowFor(project){
+        let server = null
+        if (this.defaultServer === undefined) {
+            server = this.createServer(project)
+        } else {
+            server = this.defaultServer
+        }
+
+        let session = new ProjectSession(project, server)
+        console.log("Created new ProjectSession", session)
+
+        function callback(){
+            console.log("openWindowFor callback")
+        }
+
+        session.openWindow(callback)
+    }
+
+
     cleanUpServers(){
-        console.log("Cleaning up servers", this.controllers.length)
-        for(var i = 0; i < this.controllers.length;i++){
-            var controller = this.controllers[i]
+        console.log("Cleaning up servers", this.backendServers.length)
+        for(var i = 0; i < this.backendServers.length;i++){
+            var controller = this.backendServers[i]
             controller.terminateServer()
         }
     }
@@ -64,9 +124,9 @@ class ProjectSelectionWindow {
             console.log("Closing ProjectSelectionWindow")
             self.terminated = true
             self.window = null
-            console.log(`${self.controllers.length} controllers still active`)
+            console.log(`${self.backendServers.length} backendServers still active`)
             // There are no other tasks open, so we can terminate completely.
-            if(self.controllers.length === 0){
+            if(self.backendServers.length === 0){
                 self._reallyQuit()
             }
         })
@@ -74,7 +134,7 @@ class ProjectSelectionWindow {
 
     _reallyQuit(){
         console.log("Really quitting")
-        setTimeout(() =>{
+        setTimeout(() => {
             app.releaseSingleInstance()
             app.quit()
         }, 1000)
@@ -89,7 +149,6 @@ class ProjectSelectionWindow {
         this._setupWindowCloseBehavior()
         this.hidden = false
         this.terminated = false
-
     }
 
     _registerIPCHandlers(){
@@ -99,6 +158,9 @@ class ProjectSelectionWindow {
         ipcMain.on("openProject", (event, data) => self.openProject(event, data))
         ipcMain.on("SelectProjectDirectory", (event) => self._selectProjectDirectory(event))
         ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
+        ipcMain.on("updatePort", (event, data) => {
+            self.options.port = data
+        })
     }
 
     _selectProjectDirectory(event){
@@ -115,9 +177,8 @@ class ProjectSelectionWindow {
 
     openProject(event, tag){
         let project = this.projects[tag]
-        console.log(project)
-        this.controllers.push(BackendServerControl.launch(
-            project, {callback: this.dropBackendController.bind(this)}))
+        console.log("Open Project", project)
+        this.createWindowForProject(project)
     }
 
     deleteProject(event, tag){
@@ -130,29 +191,34 @@ class ProjectSelectionWindow {
         })
     }
 
+    createWindowForProject(project) {
+        this.openWindowFor(project)
+        // this.backendServers.push(BackendServerControl.launch(
+        //     project, {callback: this.dropBackendController.bind(this)}))
+    }
+
     createProject(event, obj){
         var project = new Project(obj)
         var self = this
         this.projects.push(project)
         AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
         console.log("Creating Project", project)
-        this.controllers.push(BackendServerControl.launch(
-            project, {callback: this.dropBackendController.bind(this)}))
+        this.createWindowForProject(project)
         console.log("Launching Server")
     }
 
     dropBackendController(server){
         // console.log("dropBackendController", server.project)
         var ix = -1;
-        for(var i = 0; i < this.controllers.length; i++){
-            if(this.controllers[i].port === server.port){
+        for(var i = 0; i < this.backendServers.length; i++){
+            if(this.backendServers[i].port === server.port){
                 ix = i
             }
         }
         if(ix != -1){
-            this.controllers.pop(ix);
+            this.backendServers.pop(ix);
         }
-        if(this.controllers.length == 0 && (this.hidden || this.terminated)){
+        if(this.backendServers.length == 0 && (this.hidden || this.terminated)){
             this._reallyQuit()
         }
     }

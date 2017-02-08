@@ -4,7 +4,6 @@ const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
 
 const fs = require('fs')
 const rimraf = require("rimraf")
-const localforage = require("localforage")
 const storage = require("electron-json-storage")
 const Project = require("./project")
 
