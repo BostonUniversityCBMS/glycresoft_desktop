@@ -71,9 +71,15 @@ class ProjectSelectionViewControl{
         })
         $("#logo").click(openDevTools)
         $("#application-port-entry").change(function(event) {
-            console.log("Updating Port", this.value)
-            setPortPersistent(this.value)
-            ipcRenderer.send("updatePort", this.value)
+            let value = this.value
+            if(value === "") {
+                value = 8001
+                self.flashMessage("Port must have a value. Using default 8001.", 'red')
+                this.value = value
+            }
+            console.log("Updating Port", value)
+            setPortPersistent(value)
+            ipcRenderer.send("updatePort", value)
         })
 
         getPortPersistent((value) => {
@@ -83,6 +89,13 @@ class ProjectSelectionViewControl{
         })
 
         self.updateProjectDisplay()
+    }
+
+    flashMessage(message, color){
+        if(color === undefined){
+            color = 'black'
+        }
+        $("#flash-message").html(message).css({"color": color})
     }
 
     deleteProject(){

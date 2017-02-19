@@ -158,7 +158,7 @@ class BackendServerController {
         }
         http.get(self.url, function(response){
             var retry = false
-            if(response.statusCode == 200){
+            if(response.statusCode == 200 || response.statusCode == 302){
                 console.log("Connection Established", self.url)
                 try{
                     if(callback !== undefined){
