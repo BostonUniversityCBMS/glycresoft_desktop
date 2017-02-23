@@ -1,7 +1,6 @@
 "use strict"
 
 const {GetNextPort, GetNextPortAsync} = require("./server-config")
-
 const http = require("http")
 const querystring = require("querystring")
 const path = require('path')
@@ -17,7 +16,7 @@ console.log(EXECUTABLE)
 const MAX_RETRIES = 600;
 
 
-class BackendServerController {
+class BackendServer {
     constructor(project, options) {
         options = options === undefined ? {} : options;
         this.project = project
@@ -25,7 +24,10 @@ class BackendServerController {
         this.port = undefined
         this.url = null
         this.protocol = options.protocol === undefined ? "http:" : options.protocol
+        this.multiuser = options.allowExternalUsers === undefined ? false : options.allowExternalUsers
+        this.maxTasks = options.maxTasks === undefined ? 1 : options.maxTasks
         this.host = options.host === undefined ? "127.0.0.1" : options.host
+        this.nativeClientKey = (options.nativeClientKey === undefined ? serverConfig.makeSecretToken() : options.nativeClientKey)
         if(options.port === undefined) {
             console.log("Acquiring port using GetNextPortAsync")
             let self = this
@@ -60,9 +62,18 @@ class BackendServerController {
     }
 
     constructServerProcessCall() {
-        return (
-            this.EXECUTABLE + "\"" + this.project.storePath +
-            "\" --port " + this.port + " -b \"" + this.project.path + "\"")
+        let cmdStr =`${this.EXECUTABLE} "${this.project.storePath}" --port ${this.port}
+-b "${this.project.path}" --native-client-key "${this.nativeClientKey}"
+-t ${this.maxTasks}`.replace(/\n/g, " ");
+        if(this.multiuser) {
+            cmdStr += " -m -e"
+        }
+        return cmdStr
+        // console.log(cmdStr)
+        // return (
+        //     this.EXECUTABLE + "\"" + this.project.storePath +
+        //     "\" --port " + this.port + " -b \"" + this.project.path + "\"" +
+        //     " --native-client-key \"" + this.nativeClientKey + "\"")
     }
 
     launchServer(callback, n) {
@@ -71,7 +82,7 @@ class BackendServerController {
             n = 0
         }
         if (n > 250) {
-            throw new Error("No Port Assigned after 250 attempts")
+            throw new Error(`Server not launched after ${n} attempts`)
         }
         // Guard against unavailable ports
         if(this.port === undefined){
@@ -195,9 +206,9 @@ class BackendServerController {
 }
 
 
-BackendServerController.EXECUTABLE = EXECUTABLE
-BackendServerController.prototype.EXECUTABLE = EXECUTABLE
+BackendServer.EXECUTABLE = EXECUTABLE
+BackendServer.prototype.EXECUTABLE = EXECUTABLE
 
 
-module.exports = BackendServerController
+module.exports = BackendServer
     

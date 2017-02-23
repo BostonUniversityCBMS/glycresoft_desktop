@@ -1,12 +1,13 @@
 "use strict"
 
+const path = require("path")
 var constants = require("./constants")
 var PROJECT_FILE = constants.PROJECT_FILE
 var VERSION = constants.VERSION
 
 
 function getStorePath(project) {
-    return project.path + "/" + PROJECT_FILE
+    return path.join(project.path, PROJECT_FILE)
 }
 
 

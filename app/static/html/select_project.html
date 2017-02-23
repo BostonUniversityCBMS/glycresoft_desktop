@@ -5,11 +5,58 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title></title>
     <link href='../css/bundle.css' rel='stylesheet'>
+    <style type="text/css">
+
+
+#existing-project-container {
+    border: 2px solid lightgrey;
+    border-radius: 2px;
+}
+
+.project-display-container {
+    /*border-top: 1px solid lightgrey;*/
+    padding-left: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.project-display-container:hover {
+    background-color: aliceblue;
+}
+
+.project-name-display {
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+.delete-project {
+    cursor: pointer;
+    margin-right: 8px;
+}
+
+
+    </style>
     <script src="../js/jquery.js"></script>
+    <script>
+        /*
+            Electron's multiple require mechanisms make loading libraries that try to play
+            all sides of the dependency loading game a pain. This shim will handle the patching
+            of the require path and resolve the external scripts that are known to cause trouble.
+        */
+        if(window.jQuery === undefined){
+            if(require("electron") !== undefined){
+                require('electron').remote.process.mainModule.paths.forEach(function(path) {
+                    require('module').globalPaths.push(path);
+                });
+                window.$ = window.jQuery = require("jquery")
+                window.Hammer = require("hammerjs")
+            }
+        }
+    </script>
+    <script type="text/javascript" src='../js/materialize.js'></script>
     <script type="text/javascript">
         "use strict"
         const rimraf = require("rimraf")
-        const $ = require("../js/jquery")
         const _ = require("../js/lodash")
         const ProjectSelectionViewControl = require("../../project/project-render")
         var Controller = null
@@ -47,35 +94,48 @@
         <div class='row'>
             <h6 id='config-heading'>Configuration <span class='toggle'>[+]</span></h6>
             <div id='config-options'>
-                <div class="input-field col s5">
-                    <label for='application-port-entry'>Application Server Port</label>
+                <div class="input-field col s4">
+                    <label for='application-port-entry'>Application Port</label>
                     <br>
                     <input type="number" name="application-port-entry" id="application-port-entry"
                            value="8001" min="0" max="65535" step="1" class='validate'
-                           placeholder='HTTP Port to run Application Under' pattern="\d+"/>
+                           placeholder='Network Port to Run Application Under' pattern="\d+"/>
+                </div>
+                <div class="input-field col s4">
+                    <label for='maximum-concurrent-tasks'>Concurrent Tasks</label>
+                    <br>
+                    <input type="number" name="maximum-concurrent-tasks" id="maximum-concurrent-tasks"
+                           value="1" min="1" max="65535" step="1" class='validate'
+                           placeholder='Number of Jobs Run Simultaneously' pattern="\d+"/>
+                </div>
+                <div class="input-field col s4">
+                    <p>
+                      <input type="checkbox" id="allow-external-users" name='allow-external-users'/>
+                      <label for="allow-external-users">Allow External Users</label>
+                      <br><br>
+                    </p>
+                    <p>
+                      <small>
+                          Allowing external users to access your computer may be a security risk.
+                          This option is provided to allow multiple users to share access to the
+                          same server system and optionally, share data.
+                      </small>
+                    </p>
                 </div>
             </div>
         </div>
         <div class='row' id='load-existing-project-container'>
-            <div class="input-field col s8">
-                <h4>Select A Project</h4>
-                <select id='existing-project'  name="existing-project" class='browser-default'>
-                </select>
-                <div id='existing-project-container'></div>
+            <div class="input-field col s12">
+                <h5>Select A Project</h5>
+                <div id='existing-project-container'>
+                </div>
                 <br>
-                <button class='btn' id='load-existing-btn'>
-                    Load
-                </button>
-                <button class='btn' id='delete-existing-btn'>
-                    Delete
-                </button>
-            <br>
-            <h5>Or</h5>
+                <h5>Or</h5>
             </div>
         </div>
         <div class="row">
-            <h4>Create A New Project or Open External</h4>
-            <div class="input-field col s8">
+            <h5>Create A New Project or Open External</h5>
+            <div class="input-field col s12">
                 <label for="project-name">Project Name</label>
                 <br>
                 <input id='project-name' name="project-name" type="text" class="validate">

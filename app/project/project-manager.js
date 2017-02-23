@@ -23,7 +23,7 @@ const {
 
 const ProjectSession = require("./project-session")
 
-const BackendServerController = require("../backend-server-control")
+const BackendServer = require("../backend-server-control")
 
 const fs = require('fs')
 const rimraf = require("rimraf")
@@ -36,12 +36,13 @@ function projectFromObject(obj){
 
 
 class ProjectSelectionWindow {
-    constructor(managedWindow, options){
+    constructor(options){
         this.backendServers = []
         this.projects = []
         this.activeSessions = new Map()
 
         this.options = options || {}
+        this.nativeClientKey = this.options.nativeClientKey
 
         let self = this
 
@@ -68,7 +69,8 @@ class ProjectSelectionWindow {
 
     _createNewServer(project){
         let serverPort = this.options.port || 8001
-
+        let maxTasks = this.options.maxTasks === undefined ? 1 : this.options.maxTasks
+        let allowExternalUsers = this.options.allowExternalUsers === undefined ? false : this.options.allowExternalUsers
         let terminateCallback = function(){
             console.log("Create Server callback")
         }
@@ -78,17 +80,20 @@ class ProjectSelectionWindow {
             host: "127.0.0.1",
             protocol: "http:",
             callback: terminateCallback,
+            nativeClientKey: this.nativeClientKey,
+            "allowExternalUsers": allowExternalUsers,
+            "maxTasks": maxTasks
         }
 
-        let server = new BackendServerController(project, serverOptions)
+        let server = new BackendServer(project, serverOptions)
         return server
     }
 
     /**
-     * Creates a new {BackendServerController} instance and
+     * Creates a new {BackendServer} instance and
      * adds it to this object's `backendServers` list.
      * @param  {Project}
-     * @return {BackendServerController}
+     * @return {BackendServer}
      */
     createServer(project){
         let server = this._createNewServer(project)
@@ -98,7 +103,7 @@ class ProjectSelectionWindow {
 
     /**
      * Creates a new {ProjectSession} instance associated with this
-     * object's default {BackendServerController}. This session is
+     * object's default {BackendServer}. This session is
      * opened and added to `activeSessions`.
      * @param  {Project}
      */
@@ -111,7 +116,9 @@ class ProjectSelectionWindow {
             server = this.defaultServer
         }
 
-        let session = new ProjectSession(project, server)
+        let session = new ProjectSession(project, server, {
+            nativeClientKey: this.nativeClientKey
+        })
 
         function callback(projectSession){
             projectSession.window.on("closed", function(event) {
@@ -172,14 +179,18 @@ class ProjectSelectionWindow {
     }
 
     setupWindow(){
+        let self = this
         this.window = new electron.BrowserWindow({
             width: 800,
             height: 1000
         })
-        this.window.loadURL(`file://${__dirname}/../static/html/select_project.html`)
-        this._setupWindowCloseBehavior()
-        this.hidden = false
-        this.terminated = false
+
+        this.window.webContents.session.clearCache(() => {
+            self.window.loadURL(`file://${__dirname}/../static/html/select_project.html`)
+            self._setupWindowCloseBehavior()
+            self.hidden = false
+            self.terminated = false            
+        })
     }
 
     _registerIPCHandlers(){
@@ -191,6 +202,12 @@ class ProjectSelectionWindow {
         ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
         ipcMain.on("updatePort", (event, data) => {
             self.options.port = data
+        })
+        ipcMain.on("updateMaxTasks", (event, data) => {
+            self.options.maxTasks = data
+        })
+        ipcMain.on("updateAllowExternalUsers", (event, data) => {
+            self.options.allowExternalUsers = data
         })
     }
 
@@ -213,9 +230,10 @@ class ProjectSelectionWindow {
     }
 
     deleteProject(event, tag){
+        console.log("Calling deleteProject", tag)
         let project = this.projects[tag]
         var self = this
-        console.log(project)
+        console.log("Target Project", project)
         _RemoveProject(project, () => self.updateProjectDisplay(event))
         rimraf(project.path, function(){
             self.updateProjectDisplay(event)

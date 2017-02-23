@@ -1,12 +1,13 @@
 {
   "name": "GlycReSoft",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "",
   "main": "app/index.js",
   "private": true,
   "scripts": {
     "include-server": "bash -c \"mkdir dist/win-unpacked/resources/bin && cp -r server/win64/glycresoft-cli dist/win-unpacked/resources/bin\"",
     "start": "npm install && npm run compile && electron ./app",
+    "drun": "electron ./app",
     "clean": "rimraf dist",
     "clean:win": "rimraf dist/win",
     "compile": "echo compiling",
@@ -25,12 +26,13 @@
   },
   "dependencies": {
     "localforage": "^1.4.2",
+    "lodash": "^4.17.4",
     "rimraf": "^2.5.2"
   },
   "devDependencies": {
     "electron-builder": "^5.7.0",
     "electron-packager": "^7.1.0",
-    "electron-prebuilt": "^1.2.5",
+    "electron-prebuilt": "^1.4.13",
     "electron-winstaller": "^2.3.1",
     "png-to-ico": "^1.0.2",
     "winresourcer": "^0.9.0"

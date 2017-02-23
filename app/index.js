@@ -1,19 +1,17 @@
 const electron = require('electron')
-// Module to control application life.
+
+// Module to control application life cycle
 const app = electron.app
-// Module to create native browser window.
-const BrowserWindow = electron.BrowserWindow
 
 if(require('electron-squirrel-startup')) return;
 
 const squirrel = require("./squirrel")
 const project = require("./project")
 const serverConfig = require("./server-config")
-const BackendServerControl = require("./backend-server-control")
-
-app.BackendServerControl = BackendServerControl
+const BackendServer = require("./backend-server-control")
 
 let ProjectSelectionController = null
+let nativeClientKey = serverConfig.configManager.makeSecretToken()
 
 
 function showProjectManager(callback){
@@ -33,13 +31,15 @@ function showProjectManager(callback){
 
 function createProjectManager() {
     if(ProjectSelectionController === null){
-        ProjectSelectionController = new project.ProjectSelectionWindow()
+        ProjectSelectionController = new project.ProjectSelectionWindow({
+            "nativeClientKey": nativeClientKey
+        })
         app.ProjectSelectionController = ProjectSelectionController
     }
 }
 
 const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {
-    console.log(argv, workingDirectory)
+    console.log("Application Run Invocation", argv, workingDirectory)
     showProjectManager()
 })
 

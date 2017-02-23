@@ -2,8 +2,9 @@ const http = require("http")
 const querystring = require("querystring")
 const path = require('path')
 const child_process = require("child_process")
-
+const deepClone = require('lodash/cloneDeep')
 const electron = require("electron")
+const {session} = require('electron')
 const app = electron.app
 const dialog = electron.dialog
 const ipcMain = electron.ipcMain
@@ -12,7 +13,7 @@ const net = electron.net
 const WINDOW_OPTIONS = {
     "title": "GlycReSoft",
     "webPreferences": {
-        "preload": path.join(__dirname, "static/js/preload.js")
+        "preload": path.join(__dirname, "..", "static/js/preload.js")
     }
 }
 
@@ -29,9 +30,15 @@ class ProjectSession {
         this.instanceId = SESSION_COUNTER;
         SESSION_COUNTER++;
 
+        this.webSessionId = "project-session-" + this.instanceId.toString()
+        this.webSession = session.fromPartition(this.webSessionId, {cache: false})
+
         this.project = project
         this.backendServer = backendServer
+
         this.options = options
+        this.nativeClientKey = options.nativeClientKey
+
         this.window = null
         this.sessionId = options.sessionId
         this.checkIfClose = true
@@ -95,72 +102,108 @@ class ProjectSession {
         this.window.close()
     }
 
+    checkTasksBeforeClose(e) {
+        let self = this
+        console.log((`Preparing to close Window For Project "${self.project.path}" ` +
+                     `with session id ${self.sessionId} with checkIfClose value ` +
+                     `${self.checkIfClose}`))
+        if (self.checkIfClose) {
+            e.preventDefault()
+
+            self.pendingTasks((tasks) => {
+                let keys = Object.keys(tasks)
+                if(keys.length > 0) {                
+                    dialog.showMessageBox(self.window, {
+                        "title": "Close With Pending Tasks",
+                        "type": "question",
+                        "message": `
+                    This window may close, but any pending tasks waiting to run will
+                    continue running until all windows are closed and the application
+                    completely shuts down.`,
+                        "buttons": ["Okay", "Cancel", "Stop Tasks"],
+                    },
+                    (response) => {
+                        console.log("Choice", response)
+                        if(response == 2) {
+                            self.endTasks()
+                        }
+                        if(response == 0 || response == 2) {
+                            self.reallyQuit()
+                        }
+                    })
+                } else {
+                    console.log("No tasks pending. Quit right away.")
+                    self.reallyQuit()
+                }
+            })
+        }
+    }
+
+    _prepareWindowForDisplay(callback) {
+        let self = this
+        this.window.loadURL(this.url)
+        this.window.maximize()
+
+        ipcMain.on("openDevTools", (event) => {
+            if(this.window !== null){
+                this.window.webContents.openDevTools()
+            }
+        })
+
+        if (callback !== undefined) {
+            callback(this)
+        }
+
+        this.window.on("close", function(e) {
+            self.checkTasksBeforeClose(e)
+        })
+    }
+
     createWindow(windowConfig, callback) {
         let self = this
+
         if (windowConfig.projectBackendId === undefined) {
             this.sessionId = 0
         } else {
             this.sessionId = windowConfig.projectBackendId
         }
-        this.window = new electron.BrowserWindow(WINDOW_OPTIONS)
-        let cookie = {
-            "url": self.url,
+
+        let windowOptions = deepClone(WINDOW_OPTIONS)
+        windowOptions.webPreferences.session = this.webSession
+
+        this.window = new electron.BrowserWindow(windowOptions)
+
+        //Routes all requests this session makes to the correct
+        //project's Application Manager instance on the server
+        let projectSessionIdCookie = {
+            "url": this.url,
             "name": "project_id",
             "value": this.sessionId.toString()
         }
+
+        //Proves to the server that this connection is a trusted
+        //native client and that it may reference the server's local
+        //file system.
+        let secretKeyCookie = {
+            "url": this.url,
+            "name": "native_client_key",
+            "value": this.nativeClientKey
+        }
+
         this.checkIfClose = true
-        this.window.webContents.session.cookies.set(cookie, (error) => {
+        this.window.webContents.session.cookies.set(
+            projectSessionIdCookie, (error) => {
             if (error) {
                 console.log("Error while setting cookie", error)
             }
-            self.window.loadURL(self.url)
-            self.window.maximize()
-
-            ipcMain.on("openDevTools", (event) => {
-                if(self.window !== null){
-                    self.window.webContents.openDevTools()
-                }
+            self.window.webContents.session.cookies.set(
+                secretKeyCookie, (error) => {
+                    if (error) {
+                        console.log("Error while setting cookie", error)
+                    }
+                    self._prepareWindowForDisplay(callback)
             })
-
-            if (callback !== undefined) {
-                callback(self)
-            }
-            this.window.on("close", function(e) {
-                console.log((`Preparing to close Window For Project "${self.project.path}" ` +
-                             `with session id ${self.sessionId} with checkIfClose value ` +
-                             `${self.checkIfClose}`))
-                if (self.checkIfClose) {
-                    e.preventDefault()
-
-                    self.pendingTasks((tasks) => {
-                        let keys = Object.keys(tasks)
-                        if(keys.length > 0) {                
-                            dialog.showMessageBox(self.window, {
-                                "title": "Close With Pending Tasks",
-                                "type": "question",
-                                "message": `
-                            This window may close, but any pending tasks waiting to run will
-                            continue running until all windows are closed and the application
-                            completely shuts down.`,
-                                "buttons": ["Okay", "Cancel", "Stop Tasks"],
-                            },
-                            (response) => {
-                                console.log("Choice", response)
-                                if(response == 2) {
-                                    self.endTasks()
-                                }
-                                if(response == 0 || response == 2) {
-                                    self.reallyQuit()
-                                }
-                            })
-                        } else {
-                            console.log("No tasks pending. Quit right away.")
-                            self.reallyQuit()
-                        }
-                    })
-                }
-            })
-        })
+        })            
 
         this.window.on("closed", (e) => {
             self.backendServer.removeSession(self);
@@ -168,43 +211,14 @@ class ProjectSession {
         })
 
         this.window.webContents.on("dom-ready", function(){
-            //Set up SVG to PNG Export on Right-click of SVG Graphics
-            self.window.webContents.executeJavaScript(`$('body').delegate('svg', 'contextmenu', function(e){
-                var SVGSaver,
-                  bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+            //Set up native-client particulars like SVG to PNG Export on Right-click of SVG Graphics
+            self.window.webContents.executeJavaScript(`
+            $('body').delegate('svg', 'contextmenu', function(e){
+                saveSVGToPNG(this)
+            })
 
-                SVGSaver = (function() {
-                  function SVGSaver(svgElement) {
-                    this.svgElement = svgElement;
-                    this.draw = bind(this.draw, this);
-                    this.canvas = $("<canvas></canvas>")[0];
-                    this.img = $("<img>");
-                    this.canvas.height = this.svgElement.height();
-                    this.canvas.width = this.svgElement.width();
-                  }
-
-                  SVGSaver.prototype.draw = function() {
-                    var ctx, xml;
-                    xml = new XMLSerializer().serializeToString(this.svgElement[0]);
-                    this.img.attr("src", "data:image/svg+xml;base64," + btoa(xml));
-                    ctx = this.canvas.getContext('2d');
-                    return ctx.drawImage(this.img[0], 0, 0);
-                  };
-
-                  return SVGSaver;
-
-                })();
-                const saver = new SVGSaver($(this))
-                saver.draw()
-                const uri = saver.canvas.toDataURL()
-                const webContents = require('electron').remote.webContents
-                const activeContents = webContents.getFocusedWebContents()
-                
-                if(activeContents === null){
-                    return
-                }
-                activeContents.downloadURL(uri)
-            })`)
+            window.nativeClientKey = "${self.nativeClientKey}"
+            `)
         })
     }
 

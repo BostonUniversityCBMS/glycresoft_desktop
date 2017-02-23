@@ -3,6 +3,7 @@
 const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
 
 const fs = require('fs')
+const os_path = require("path")
 const rimraf = require("rimraf")
 const storage = require("electron-json-storage")
 const Project = require("./project")
@@ -20,14 +21,17 @@ function AddProjectToLocalStorage(project, callback){
             value = [];
         }
         value.push(project)
-        storage.set(PROJECTS_KEY, value)
-        callback()
+        storage.set(PROJECTS_KEY, value, function(err){
+            if (err) {
+                console.log("Error in AddProjectToLocalStorage", err)
+            }
+            callback()
+        })
     })
 }
 
 function LoadAllProjects(callback){
     return storage.get(PROJECTS_KEY, function(err, values){
-        console.log(values, values.map)
         if(values === undefined || values === null || values.length === undefined){
             values = []
         }
@@ -37,13 +41,12 @@ function LoadAllProjects(callback){
 
 
 function _RemoveAllProjects(callback){
-    storage.set(PROJECTS_KEY, []);
-    callback()
+    storage.set(PROJECTS_KEY, [], callback);
 }
 
 
 function _RemoveProject(project, callback){
-    console.log(arguments)
+    console.log("Call to _RemoveProject on ", project.path)
     storage.get(PROJECTS_KEY, function(err, value){
         if(value === undefined || value === null){
             value = [];
@@ -52,20 +55,23 @@ function _RemoveProject(project, callback){
         for(var i = 0; i < value.length; i++){
             var project_i = value[i];
             if(project_i.path === project.path){
-                console.log(project_i)
                 continue;
             }
             filter.push(project_i)
         }
-        storage.set(PROJECTS_KEY, filter)
-        callback()
+        storage.set(PROJECTS_KEY, filter, function(err) {
+            if (err) {
+                console.log("Error in RemoveProject", err)
+            }
+            callback()
+        })
     })
 }
 
 
 function makeNewProjectDirectory(path, name){
     name = name.replace(/\s/g, '_')
-    path = [path, name].join('/')
+    path = os_path.join(path, name)
     try {
         fs.lstatSync(path)
     } catch (err) {
