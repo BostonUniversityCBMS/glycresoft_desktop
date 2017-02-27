@@ -77,19 +77,19 @@ function getAllowExternalUsers(callback) {
 }
 
 
-function setPortPersistent(portValue){
+function setPort(portValue){
     storage.set(PORT_STORAGE_KEY, portValue)
 }
 
 
-function getPortPersistent(callback){
+function getPort(callback){
     storage.get(PORT_STORAGE_KEY, (err, value) => {
         if (err) {
             console.log(err)
         }
         if (value === undefined || value === null || value == "" || _.isEqual(value, {})) {
             value = 8001
-            setPortPersistent(value)
+            setPort(value)
         }
         console.log("Loaded Port Number", value)
         callback(value)
@@ -97,7 +97,7 @@ function getPortPersistent(callback){
 }
 
 
-class ProjectSelectionViewControl{
+class ProjectSelectionViewControl {
     constructor(handle){
         let self = this
         this.handle = handle
@@ -105,7 +105,7 @@ class ProjectSelectionViewControl{
 
         this._setupEventHandlers()
 
-        getPortPersistent((value) => {
+        getPort((value) => {
             console.log("Port", value)
             $("#application-port-entry").val(value)
             ipcRenderer.send("updatePort", value)
@@ -121,7 +121,7 @@ class ProjectSelectionViewControl{
             ipcRenderer.send("updateAllowExternalUsers", value)
         })
 
-        this.updateInterval = setInterval(() => self.updateProjectDisplay(), 7500)
+        this.updateInterval = setInterval(() => self.updateProjectDisplay(), 10000)
 
         self.updateProjectDisplay()
     }
@@ -133,8 +133,7 @@ class ProjectSelectionViewControl{
             this.flashMessage("Port must have a value. Using default 8001.", 'red')
             portInput.value = value
         }
-        console.log("Updating Port", value)
-        setPortPersistent(value)
+        setPort(value)
         ipcRenderer.send("updatePort", value)
     }
 
@@ -145,7 +144,6 @@ class ProjectSelectionViewControl{
             countInput.value = value
         } 
         setMaxTasks(value)
-        console.log("Updating Max Tasks", value)
         ipcRenderer.send("updateMaxTasks", value)
     }
 
@@ -155,7 +153,6 @@ class ProjectSelectionViewControl{
             value = false
             checkbox.checked = false
         }
-        console.log("Updating Allow External Users", value)
         setAllowExternalUsers(value)
         ipcRenderer.send("updateAllowExternalUsers", value)
     }
@@ -226,7 +223,6 @@ class ProjectSelectionViewControl{
     updateProjectDisplay(){
         var self = this
         LoadAllProjects(function(projects, err){
-            // console.log("LoadAllProjects", err, projects)
             var existingContainer = $("#load-existing-project-container");
 
             if(projects == null || projects.length == 0){
@@ -234,13 +230,10 @@ class ProjectSelectionViewControl{
                 return;
             }
 
-            // console.log("Projects Loaded:", projects)
-
             self.projects = projects
             self.makeProjectDisplayList()
 
             existingContainer.show();
-            // console.log("Redrawn!", self.projects)
         })
     }
 
