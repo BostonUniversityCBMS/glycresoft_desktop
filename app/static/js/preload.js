@@ -38,8 +38,19 @@ function saveSVGToPNG(svgElement) {
 }
 
 
+function saveIMGToPNG(imgElement) {
+    const webContents = require('electron').remote.webContents
+    const activeContents = webContents.getFocusedWebContents()
+    if(activeContents === null){
+        return
+    }
+    activeContents.downloadURL(imgElement.src)
+}
+
+
 window.SVGSaver = SVGSaver
 window.saveSVGToPNG = saveSVGToPNG
+window.saveIMGToPNG = saveIMGToPNG
 
 function nativeClientMultiFileDownloadDirectory(callback){
     let electron = require("electron").remote

@@ -235,9 +235,9 @@ class ProjectSelectionWindow {
         var self = this
         console.log("Target Project", project)
         _RemoveProject(project, () => self.updateProjectDisplay(event))
-        rimraf(project.path, function(){
-            self.updateProjectDisplay(event)
-        })
+        // rimraf(project.path, function(){
+        //     self.updateProjectDisplay(event)
+        // })
     }
 
     createWindowForProject(project) {

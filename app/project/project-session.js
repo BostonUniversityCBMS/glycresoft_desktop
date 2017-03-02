@@ -217,6 +217,10 @@ class ProjectSession {
                 saveSVGToPNG(this)
             })
 
+            $('body').delegate("img", 'contextmenu', function(e){
+                saveIMGToPNG(this)
+            })
+
             window.nativeClientKey = "${self.nativeClientKey}"
             `)
         })
