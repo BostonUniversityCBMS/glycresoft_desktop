@@ -7,10 +7,10 @@ const dialog = electron.dialog
 const ipcMain = electron.ipcMain
 
 const Project = require("./project")
-
+const path = require("path")
 const storage = require("electron-json-storage")
 
-const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
+const {PROJECTS_KEY, PROJECT_FILE, VERSION, PROJECT_STRUCTURE_PATHS} = require("./constants")
 
 const {
     AddProjectToLocalStorage,
@@ -232,12 +232,27 @@ class ProjectSelectionWindow {
     deleteProject(event, tag){
         console.log("Calling deleteProject", tag)
         let project = this.projects[tag]
-        var self = this
+        let self = this
         console.log("Target Project", project)
         _RemoveProject(project, () => self.updateProjectDisplay(event))
-        // rimraf(project.path, function(){
-        //     self.updateProjectDisplay(event)
-        // })
+        let paths = PROJECT_STRUCTURE_PATHS.concat([])
+        let clearPaths = (pathArray, callback) => {
+            if (pathArray.length > 0) {
+                let fullPath = path.join(project.path, pathArray[0])
+                console.log("rimraf", fullPath)
+                rimraf(fullPath, (err) => {
+                    if(err) {
+                        console.log("clearPaths::rimraf::error", err, pathArray)
+                    }
+                    clearPaths(pathArray.slice(1), callback)
+                })
+            } else {
+                callback()
+            }
+        }
+        clearPaths(paths, () => {
+            self.updateProjectDisplay(event)  
+        })
     }
 
     createWindowForProject(project) {

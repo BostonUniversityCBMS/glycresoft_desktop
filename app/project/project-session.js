@@ -230,7 +230,6 @@ class ProjectSession {
         var self = this
 
         let task = () => {
-            console.log("Registering Session")
             self.backendServer.registerProjectSession(self.project, (registration) => {
                 let windowConfig = {}
                 windowConfig.projectBackendId = registration.project_id
@@ -242,7 +241,6 @@ class ProjectSession {
         if(this.backendServer.hasStartedProcess) {
             task()
         } else {
-            console.log("Launching server.")
             this.backendServer.launchServer(() => {
                 self.backendServer.waitForServer(0, () => {
                     task()
