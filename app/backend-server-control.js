@@ -1,20 +1,10 @@
 "use strict"
 
-const {GetNextPort, GetNextPortAsync, TerminateServer} = require("./server-config")
-
+const {GetNextPort, GetNextPortAsync} = require("./server-config")
 const http = require("http")
+const querystring = require("querystring")
 const path = require('path')
 const child_process = require("child_process")
-
-const electron = require("electron")
-const app = electron.app
-
-const WINDOW_OPTIONS = {
-    "title": "GlycReSoft",
-    "webPreferences": {
-        "preload": path.join(__dirname, "static/js/preload.js")
-    }
-}
 
 const serverConfig = require("./server-config").configManager
 
@@ -22,141 +12,203 @@ const serverConfig = require("./server-config").configManager
 var EXECUTABLE = "\"" + serverConfig.serverExecutable + '" server '
 console.log(EXECUTABLE)
 
-function BackendServerControl(project, options){
-    options = options === undefined ? {} : options;
-    this.project = project
-    console.log(this.project, this.project.storePath)
-    this.port = undefined
-    if(options.port === undefined) {
-        let self = this
-        GetNextPortAsync((err, port) => {
-            self.port = port
-            self.url = "http://127.0.0.1:" + this.port
-        })
-    } else {
-        this.port = options.port
-    }
-    this.host = options.host === undefined ? "127.0.0.1" : options.host
-    this.protocol = options.protocol === undefined ? "http:" : options.protocol
-    this.terminateCallback = options.callback === undefined ? function(){} : options.callback
-    this.url = null
-    this.process = null
-    this.window = null
-}
 
-BackendServerControl.EXECUTABLE = EXECUTABLE
-BackendServerControl.prototype.EXECUTABLE = EXECUTABLE
-
-BackendServerControl.prototype.constructServerProcessCall = function(){
-    return (this.EXECUTABLE + "\"" + this.project.storePath + "\" --port " + this.port + " -b \"" + this.project.path + "\"")
-}
-
-BackendServerControl.prototype.launchServer = function(callback, n){
-    if (n === undefined) {
-        n = 0
-    }
-    if (n > 250) {
-        throw new Error("No Port Assigned after 250 attempts")
-    }
-    // Guard against unavailable ports
-    if(this.port === undefined){
-        let self = this
-        setTimeout(() => self.launchServer(callback, n + 1), 1250)
-    } else {
-        console.log(this.constructServerProcessCall())
-        let child = child_process.exec(this.constructServerProcessCall())
-        child.stdout.on("data", function(){
-            //console.log("stdout", arguments)
-            //console.log(arguments[0])
-        })
-        child.stderr.on("data", function(){
-            //console.log("stderr", arguments)
-            //console.log(arguments[0])
-        })
-        this.process = child
-        callback()
-    }
-}
+const MAX_RETRIES = 600;
 
 
-BackendServerControl.prototype.configureTerminationBehavior = function(){
-    var self = this
-    self.process.on("exit", function(){
-        console.log("Server View Exited!", arguments)
-        self.terminateServer()
-        self.terminateCallback(self)
-    })
-    self.window.on("close", function(){
-        console.log('Server View Closed!', self.project)
-        self.terminateServer()
-        // self.process.kill()
-        self.terminateCallback(self)
-    })
-
-}
-
-
-BackendServerControl.prototype.openWindow = function(){
-    this.window = new electron.BrowserWindow(WINDOW_OPTIONS)
-    // this.window.webContents.openDevTools()
-    this.window.loadURL(this.url)
-    this.window.maximize()
-}
-
-
-BackendServerControl.prototype.navigateOnReady = function(count, callback){
-    var url = this.url
-    var self = this
-    count = count === undefined ? 1 : count + 1;
-    if(count > 600){
-        throw new Error("Server Not Ready After " + count + " Tries")
-    }
-    console.log("Calling navigateOnReady with", count, url)
-    http.get(self.url, function(response){
-        var retry = false
-        if(response.statusCode == 200){
-            console.log(self.url)
-            try{
-                self.openWindow()
-                if(callback !== undefined){
-                    callback()
-                }                
-            } catch(error){
-                retry = true
-                console.log(error)
-            }
+class BackendServer {
+    constructor(project, options) {
+        options = options === undefined ? {} : options;
+        this.project = project
+        console.log(this.project, this.project.storePath)
+        this.port = undefined
+        this.url = null
+        this.protocol = options.protocol === undefined ? "http:" : options.protocol
+        this.multiuser = options.allowExternalUsers === undefined ? false : options.allowExternalUsers
+        this.maxTasks = options.maxTasks === undefined ? 1 : options.maxTasks
+        this.host = options.host === undefined ? "127.0.0.1" : options.host
+        this.nativeClientKey = (options.nativeClientKey === undefined ? serverConfig.makeSecretToken() : options.nativeClientKey)
+        if(options.port === undefined) {
+            console.log("Acquiring port using GetNextPortAsync")
+            let self = this
+            GetNextPortAsync((err, port) => {
+                self.port = port
+                self.url = self.protocol + "//" + self.host + ":" + self.port
+            })
         } else {
-            retry = true
+            this.port = options.port
+            this.url = this.protocol + "//" + this.host + ":" + this.port
         }
-        if(retry){
-            self.navigateOnReady(count, callback)
+        console.log("Server Setup: ", this.host, this.port, this.url)
+        this.terminateCallback = options.callback === undefined ? function(){} : options.callback
+        this.process = null
+        this.sessionCounter = 0
+    }
+
+    addSession(session) {
+        this.sessionCounter += 1
+    }
+
+    removeSession(session) {
+        this.sessionCounter -= 1
+    }
+
+    get hasNoSessions() {
+        this.sessionCounter <= 0
+    }
+
+    get hasStartedProcess() {
+        return this.process !== null
+    }
+
+    constructServerProcessCall() {
+        let cmdStr =`${this.EXECUTABLE} "${this.project.storePath}" --port ${this.port}
+-b "${this.project.path}" --native-client-key "${this.nativeClientKey}"
+-t ${this.maxTasks}`.replace(/\n/g, " ");
+        if(this.multiuser) {
+            cmdStr += " -m -e"
         }
-    }).on('error', function(e) {
-        console.log(e)
-        setTimeout(function(){self.navigateOnReady(count, callback)}, 150)
-    });
+        return cmdStr
+        // console.log(cmdStr)
+        // return (
+        //     this.EXECUTABLE + "\"" + this.project.storePath +
+        //     "\" --port " + this.port + " -b \"" + this.project.path + "\"" +
+        //     " --native-client-key \"" + this.nativeClientKey + "\"")
+    }
+
+    launchServer(callback, n) {
+        console.log("Attempting to launch server with url ", this.url)
+        if (n === undefined) {
+            n = 0
+        }
+        if (n > 250) {
+            throw new Error(`Server not launched after ${n} attempts`)
+        }
+        // Guard against unavailable ports
+        if(this.port === undefined){
+            let self = this
+            setTimeout(() => self.launchServer(callback, n + 1), 1250)
+        } else {
+            console.log(this.constructServerProcessCall())
+            let child = child_process.exec(this.constructServerProcessCall())
+            child.stdout.on("data", function(){
+                console.log(arguments[0].trim())
+            })
+            child.stderr.on("data", function(){
+                console.log(arguments[0].trim())
+            })
+            console.log("Server Launched")
+            this.process = child
+            callback()
+        }
+    }
+
+    configureTerminationBehavior() {
+        var self = this
+        self.process.on("exit", function(){
+            console.log("Server View Exited!", arguments)
+            self.terminateServer()
+            self.terminateCallback(self)
+        })
+        self.window.on("close", function(){
+            console.log('Server View Closed!', self.project)
+            self.terminateServer()
+            // self.process.kill()
+            self.terminateCallback(self)
+        })
+
+    }
+
+    registerProjectSession(project, callback) {
+        var url = this.url
+        var self = this
+        var payload = {
+            "connection_string": project.storePath,
+            "basepath": project.path
+        }
+
+        var postData = querystring.stringify(payload)
+        var requestOptions = {
+            host: this.host,
+            protocol: this.protocol,
+            port: this.port,
+            method: 'post',
+            path: "/register_project",
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        }
+
+        var req = http.request(requestOptions, (res) => {
+            res.setEncoding('utf8');
+            let buffer = []
+            res.on('data', (chunk) => {
+                buffer.push(chunk);
+            });
+            res.on('end', () => {
+                let responseData = JSON.parse(buffer.join(""));
+                callback(responseData);
+            });
+        })
+
+        req.on('error', (e) => {
+            console.log(`problem with request: ${e.message}`);
+        });
+
+        req.write(postData);
+        req.end();
+    }
+
+    waitForServer(count, callback){
+        var url = this.url
+        var self = this
+        count = count === undefined ? 1 : count + 1;
+        if(count > MAX_RETRIES){
+            throw new Error("Server Not Ready After " + count + " Tries")
+        }
+        http.get(self.url, function(response){
+            var retry = false
+            if(response.statusCode == 200 || response.statusCode == 302){
+                console.log("Connection Established", self.url)
+                try{
+                    if(callback !== undefined){
+                        callback(self)
+                    }                
+                } catch(error){
+                    retry = true
+                    console.log(error)
+                }
+            } else {
+                retry = true
+            }
+            if(retry){
+                self.waitForServer(count, callback)
+            }
+        }).on('error', function(e) {
+            console.log("Waiting For Server... ", count)
+            setTimeout(function(){self.waitForServer(count, callback)}, 150)
+        });
+    }
+
+    terminateServer() {
+        console.log("Terminating ", this.url, this.sessionCounter, this.process.pid)
+        let rq = http.request({host:this.host, "port": this.port, protocol: this.protocol,
+                               path: "/internal/shutdown", method: "POST"})
+        rq.on("data", function(data){
+            console.log("terminateServer response", arguments)
+        })
+        rq.on("error", function(err){
+            console.log("terminateServer failed")
+        })
+        rq.end()
+    }
 }
 
-BackendServerControl.prototype.terminateServer = function(){
-    console.log("Terminating ", this.url)
-    let rq = http.request({host:this.host, "port": this.port, protocol: this.protocol,
-                           path: "/internal/shutdown", method: "POST"})
-    rq.on("data", function(data){
-        console.log("terminateServer response", arguments)
-    })
-    rq.on("error", function(err){
-        console.log("terminateServer failed")
-    })
-    rq.end()
-}
 
-BackendServerControl.launch = function(project, options){
-    var server = new BackendServerControl(project, options)
-    console.log(server, server.project)
-    server.launchServer(() => server.navigateOnReady(0, function(){server.configureTerminationBehavior()}))
-    console.log("Server Launched")
-    return server
-}
+BackendServer.EXECUTABLE = EXECUTABLE
+BackendServer.prototype.EXECUTABLE = EXECUTABLE
 
-module.exports = BackendServerControl
+
+module.exports = BackendServer
     

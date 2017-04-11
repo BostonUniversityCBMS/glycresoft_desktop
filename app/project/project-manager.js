@@ -7,8 +7,10 @@ const dialog = electron.dialog
 const ipcMain = electron.ipcMain
 
 const Project = require("./project")
+const path = require("path")
+const storage = require("electron-json-storage")
 
-const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
+const {PROJECTS_KEY, PROJECT_FILE, VERSION, PROJECT_STRUCTURE_PATHS} = require("./constants")
 
 const {
     AddProjectToLocalStorage,
@@ -18,7 +20,10 @@ const {
     makeNewProjectDirectory
 } = require("./project-storage")
 
-const BackendServerControl = require("../backend-server-control")
+
+const ProjectSession = require("./project-session")
+
+const BackendServer = require("../backend-server-control")
 
 const fs = require('fs')
 const rimraf = require("rimraf")
@@ -29,16 +34,24 @@ function projectFromObject(obj){
     return new Project(obj)
 }
 
+
 class ProjectSelectionWindow {
-    constructor(managedWindow){
-        this.controllers = []
+    constructor(options){
+        this.backendServers = []
         this.projects = []
+        this.activeSessions = new Map()
+
+        this.options = options || {}
+        this.nativeClientKey = this.options.nativeClientKey
+
+        let self = this
+
         this.window = null
         this.setupWindow()
         this._registerIPCHandlers()
         this.hidden = false
         this.terminated = false
-        let self = this
+
         LoadAllProjects(function(projects){
             self.projects = projects
         })
@@ -49,10 +62,96 @@ class ProjectSelectionWindow {
         })
     }
 
+
+    get defaultServer(){
+        return this.backendServers[0]
+    }
+
+    _createNewServer(project){
+        let serverPort = this.options.port || 8001
+        let maxTasks = this.options.maxTasks === undefined ? 1 : this.options.maxTasks
+        let allowExternalUsers = this.options.allowExternalUsers === undefined ? false : this.options.allowExternalUsers
+        let terminateCallback = function(){
+            console.log("Create Server callback")
+        }
+
+        let serverOptions = {
+            port: serverPort,
+            host: "127.0.0.1",
+            protocol: "http:",
+            callback: terminateCallback,
+            nativeClientKey: this.nativeClientKey,
+            "allowExternalUsers": allowExternalUsers,
+            "maxTasks": maxTasks
+        }
+
+        let server = new BackendServer(project, serverOptions)
+        return server
+    }
+
+    /**
+     * Creates a new {BackendServer} instance and
+     * adds it to this object's `backendServers` list.
+     * @param  {Project}
+     * @return {BackendServer}
+     */
+    createServer(project){
+        let server = this._createNewServer(project)
+        this.backendServers.push(server)
+        return server
+    }
+
+    /**
+     * Creates a new {ProjectSession} instance associated with this
+     * object's default {BackendServer}. This session is
+     * opened and added to `activeSessions`.
+     * @param  {Project}
+     */
+    openWindowFor(project){
+        let server = null
+        let self = this
+        if (this.defaultServer === undefined) {
+            server = this.createServer(project)
+        } else {
+            server = this.defaultServer
+        }
+
+        let session = new ProjectSession(project, server, {
+            nativeClientKey: this.nativeClientKey
+        })
+
+        function callback(projectSession){
+            projectSession.window.on("closed", function(event) {
+                self.removeSession(projectSession)
+                if(self.terminated) {
+                    self.shutdownIfAllSessionsClosed()
+                }
+            })
+        }
+
+        session.openWindow(callback)
+        this.activeSessions.set(session.instanceId, session)
+    }
+
+
+    removeSession(session){
+        console.log("Removing Session from Active Session Map", session.instanceId)
+        this.activeSessions.delete(session.instanceId)
+    }
+
+    shutdownIfAllSessionsClosed() {
+        if (this.activeSessions.size == 0) {
+            this.cleanUpServers()
+            this._reallyQuit()
+            return true
+        }
+        return false
+    }
+
     cleanUpServers(){
-        console.log("Cleaning up servers", this.controllers.length)
-        for(var i = 0; i < this.controllers.length;i++){
-            var controller = this.controllers[i]
+        console.log("Cleaning up servers", this.backendServers.length)
+        for(var i = 0; i < this.backendServers.length;i++){
+            var controller = this.backendServers[i]
             controller.terminateServer()
         }
     }
@@ -63,31 +162,35 @@ class ProjectSelectionWindow {
             console.log("Closing ProjectSelectionWindow")
             self.terminated = true
             self.window = null
-            console.log(`${self.controllers.length} controllers still active`)
+            console.log(`${self.activeSessions.size} sessions still active`)
             // There are no other tasks open, so we can terminate completely.
-            if(self.controllers.length === 0){
-                self._reallyQuit()
+            if (!self.shutdownIfAllSessionsClosed()) {
+                console.log("Active sessions remaining. Cannot Quit")
             }
         })
     }
 
     _reallyQuit(){
         console.log("Really quitting")
-        setTimeout(() =>{
+        setTimeout(() => {
             app.releaseSingleInstance()
             app.quit()
         }, 1000)
     }
 
     setupWindow(){
+        let self = this
         this.window = new electron.BrowserWindow({
             width: 800,
             height: 1000
         })
-        this.window.loadURL(`file://${__dirname}/../static/html/select_project.html`)
-        this._setupWindowCloseBehavior()
-        this.hidden = false
-        this.terminated = false
+
+        this.window.webContents.session.clearCache(() => {
+            self.window.loadURL(`file://${__dirname}/../static/html/select_project.html`)
+            self._setupWindowCloseBehavior()
+            self.hidden = false
+            self.terminated = false            
+        })
     }
 
     _registerIPCHandlers(){
@@ -96,6 +199,16 @@ class ProjectSelectionWindow {
         ipcMain.on("deleteProject", (event, data) => self.deleteProject(event, data))
         ipcMain.on("openProject", (event, data) => self.openProject(event, data))
         ipcMain.on("SelectProjectDirectory", (event) => self._selectProjectDirectory(event))
+        ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
+        ipcMain.on("updatePort", (event, data) => {
+            self.options.port = data
+        })
+        ipcMain.on("updateMaxTasks", (event, data) => {
+            self.options.maxTasks = data
+        })
+        ipcMain.on("updateAllowExternalUsers", (event, data) => {
+            self.options.allowExternalUsers = data
+        })
     }
 
     _selectProjectDirectory(event){
@@ -112,19 +225,38 @@ class ProjectSelectionWindow {
 
     openProject(event, tag){
         let project = this.projects[tag]
-        console.log(project)
-        this.controllers.push(BackendServerControl.launch(
-            project, {callback: this.dropBackendController.bind(this)}))
+        console.log("Open Project", project)
+        this.createWindowForProject(project)
     }
 
     deleteProject(event, tag){
+        console.log("Calling deleteProject", tag)
         let project = this.projects[tag]
-        var self = this
-        console.log(project)
+        let self = this
+        console.log("Target Project", project)
         _RemoveProject(project, () => self.updateProjectDisplay(event))
-        rimraf(project.path, function(){
-            //self.updateProjectDisplay(event)
+        let paths = PROJECT_STRUCTURE_PATHS.concat([])
+        let clearPaths = (pathArray, callback) => {
+            if (pathArray.length > 0) {
+                let fullPath = path.join(project.path, pathArray[0])
+                console.log("rimraf", fullPath)
+                rimraf(fullPath, (err) => {
+                    if(err) {
+                        console.log("clearPaths::rimraf::error", err, pathArray)
+                    }
+                    clearPaths(pathArray.slice(1), callback)
+                })
+            } else {
+                callback()
+            }
+        }
+        clearPaths(paths, () => {
+            self.updateProjectDisplay(event)  
         })
+    }
+
+    createWindowForProject(project) {
+        this.openWindowFor(project)
     }
 
     createProject(event, obj){
@@ -133,23 +265,21 @@ class ProjectSelectionWindow {
         this.projects.push(project)
         AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
         console.log("Creating Project", project)
-        this.controllers.push(BackendServerControl.launch(
-            project, {callback: this.dropBackendController.bind(this)}))
+        this.createWindowForProject(project)
         console.log("Launching Server")
     }
 
     dropBackendController(server){
-        // console.log("dropBackendController", server.project)
         var ix = -1;
-        for(var i = 0; i < this.controllers.length; i++){
-            if(this.controllers[i].port === server.port){
+        for(var i = 0; i < this.backendServers.length; i++){
+            if(this.backendServers[i].port === server.port){
                 ix = i
             }
         }
         if(ix != -1){
-            this.controllers.pop(ix);
+            this.backendServers.pop(ix);
         }
-        if(this.controllers.length == 0 && (this.hidden || this.terminated)){
+        if(this.backendServers.length == 0 && (this.hidden || this.terminated)){
             this._reallyQuit()
         }
     }

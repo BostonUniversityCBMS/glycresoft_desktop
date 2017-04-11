@@ -1,4 +1,4 @@
 rm -rf dist
-npm run dist
+npm run pack
 npm run include-server
-dist/win-unpacked/glycresoft_electron.exe
+dist/win-unpacked/GlycReSoft.exe

@@ -1,12 +1,13 @@
 {
-  "name": "glycresoft_electron",
-  "version": "0.0.1",
+  "name": "GlycReSoft",
+  "version": "0.2.6",
   "description": "",
   "main": "app/index.js",
   "private": true,
   "scripts": {
     "include-server": "bash -c \"mkdir dist/win-unpacked/resources/bin && cp -r server/win64/glycresoft-cli dist/win-unpacked/resources/bin\"",
     "start": "npm install && npm run compile && electron ./app",
+    "drun": "electron ./app",
     "clean": "rimraf dist",
     "clean:win": "rimraf dist/win",
     "compile": "echo compiling",
@@ -15,16 +16,25 @@
     "release": "npm run compile && build",
     "dist:win64": "./node_modules/.bin/build --platform win32 --arch x64"
   },
-  "build": {},
+  "build": {
+    "win": {
+      "icon": "img/logo.ico"
+    },
+    "squirrelWindows": {
+      "iconUrl": "https://raw.githubusercontent.com/mobiusklein/glycresoft_desktop/master/img/logo.ico"
+    }
+  },
   "dependencies": {
     "localforage": "^1.4.2",
+    "lodash": "^4.17.4",
     "rimraf": "^2.5.2"
   },
   "devDependencies": {
     "electron-builder": "^5.7.0",
     "electron-packager": "^7.1.0",
-    "electron-prebuilt": "^1.2.5",
+    "electron-prebuilt": "^1.4.13",
     "electron-winstaller": "^2.3.1",
+    "png-to-ico": "^1.0.2",
     "winresourcer": "^0.9.0"
   }
 }

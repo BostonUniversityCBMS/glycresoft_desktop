@@ -1,14 +1,15 @@
 "use strict"
 
-var electron = require("electron")
-var app = electron.app
+const electron = require("electron")
+const app = electron.app
 
-var fs = require('fs')
-var path = require('path')
+const fs = require('fs')
+const path = require('path')
+const crypto = require("crypto")
 
-var child_process = require("child_process")
-var http = require('http')
-var net = require("net")
+const child_process = require("child_process")
+const http = require('http')
+const net = require("net")
 
 const portfinder = require("portfinder")
 
@@ -21,7 +22,7 @@ function GetNextPort(){
 }
 
 
-class ServerConfigCache {
+class ServerConfiguration {
     constructor() {
         this.portMap = {}
         this._serverExecutable = null
@@ -33,6 +34,11 @@ class ServerConfigCache {
             "bin",
             "glycresoft-cli",
             "glycresoft-cli.exe")
+    }
+
+    makeSecretToken() {
+        let buf = crypto.randomBytes(48)
+        return buf.toString("hex")
     }
 
     get serverExecutable() {
@@ -63,7 +69,7 @@ class ServerConfigCache {
 }
 
 
-var configManager = new ServerConfigCache()
+var configManager = new ServerConfiguration()
 
 
 const GetNextPortAsync = portfinder.getPort
