@@ -2,7 +2,10 @@ console.log("Preload Script Start")
 
 const fs = require("fs")
 const dialog = require("electron").remote.dialog
+const shell = require("electron").remote.shell
 
+let ExternNativeAPI = {}
+window.ExternNativeAPI = ExternNativeAPI
 
 class SVGSaver {
     constructor(svgElement) {
@@ -85,9 +88,9 @@ function saveIMGToPNG(imgElement) {
 }
 
 
-window.SVGSaver = SVGSaver
-window.saveSVGToPNG = saveSVGToPNG
-window.saveIMGToPNG = saveIMGToPNG
+window.SVGSaver = ExternNativeAPI.SVGSaver = SVGSaver
+window.saveSVGToPNG = ExternNativeAPI.saveSVGToPNG = saveSVGToPNG
+window.saveIMGToPNG = ExternNativeAPI.saveIMGToPNG = saveIMGToPNG
 
 function nativeClientMultiFileDownloadDirectory(callback){
     dialog.showOpenDialog({
@@ -99,12 +102,11 @@ function nativeClientMultiFileDownloadDirectory(callback){
     })
 }
 
-window.nativeClientMultiFileDownloadDirectory = nativeClientMultiFileDownloadDirectory
+window.nativeClientMultiFileDownloadDirectory = ExternNativeAPI.nativeClientMultiFileDownloadDirectory = nativeClientMultiFileDownloadDirectory
 
 
 function openDirectoryExternal(path) {
-    let {shell} = require("electron").remote
     shell.openItem(path)
 }
 
-window.openDirectoryExternal = openDirectoryExternal
+window.openDirectoryExternal = ExternNativeAPI.openDirectoryExternal = openDirectoryExternal
