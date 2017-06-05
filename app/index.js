@@ -2,6 +2,7 @@ const electron = require('electron')
 
 // Module to control application life cycle
 const app = electron.app
+app.disableHardwareAcceleration()
 
 if(require('electron-squirrel-startup')) return;
 
