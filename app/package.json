@@ -11,9 +11,9 @@
     "rimraf": "^2.5.2"
   },
   "description": "GlycReSoft",
-  "version": "0.2.10",
+  "version": "0.2.12",
   "main": "./index.js",
   "private": true,
-  "author": "Joshua Klein, Center for Biomedical Mass Spectrometry, Program for Bioinformatics, Boston University",
+  "author": "Center for Biomedical Mass Spectrometry, Boston University",
   "license": "ISC"
 }

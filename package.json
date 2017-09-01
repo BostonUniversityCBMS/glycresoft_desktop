@@ -1,6 +1,6 @@
 {
   "name": "GlycReSoft",
-  "version": "0.2.10",
+  "version": "0.2.12",
   "description": "",
   "main": "app/index.js",
   "private": true,
