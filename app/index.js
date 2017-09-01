@@ -4,15 +4,25 @@ const electron = require('electron')
 const app = electron.app
 app.disableHardwareAcceleration()
 
+const {appUpdater} = require('./update-check');
+
+
 if(require('electron-squirrel-startup')) return;
 
 const squirrel = require("./squirrel")
 const project = require("./project")
 const serverConfig = require("./server-config")
 const BackendServer = require("./backend-server-control")
+const updateCheck = require("./update-check")
 
 let ProjectSelectionController = null
 let nativeClientKey = serverConfig.configManager.makeSecretToken()
+
+// Funtion to check the current OS. As of now there is no proper method
+// to add auto-updates to linux platform.
+function isWindowsOrmacOS() {
+    return process.platform === 'darwin' || process.platform === 'win32';
+}
 
 
 function showProjectManager(callback){
@@ -37,6 +47,14 @@ function createProjectManager() {
         })
         app.ProjectSelectionController = ProjectSelectionController
     }
+    const page = ProjectSelectionController.window.webContents
+    page.once('did-frame-finish-load', () => {
+        const checkOS = isWindowsOrmacOS()
+        if (checkOS) {
+            console.log("Checking for updates")
+            appUpdater()
+        }
+    })
 }
 
 const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {

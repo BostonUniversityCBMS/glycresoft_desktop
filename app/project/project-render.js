@@ -33,7 +33,6 @@ function openDevTools(){
     ipcRenderer.send("openDevTools")
 }
 
-
 const PORT_STORAGE_KEY = "GLYCRESOFT-PORT"
 const MAX_TASKS_KEY = "GLYCRESOFT-MAX-TASKS"
 const ALLOW_EXTERNAL_KEY = "GLYCRESOFT-ALLOW-EXTERNAL"
@@ -124,6 +123,7 @@ class ProjectSelectionViewControl {
         this.updateInterval = setInterval(() => self.updateProjectDisplay(), 10000)
 
         self.updateProjectDisplay()
+
     }
 
     _updatePort(portInput){
