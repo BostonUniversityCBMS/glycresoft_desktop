@@ -1,0 +1,5 @@
+package-lock.json
+*sublime*
+node_modules
+dist
+build

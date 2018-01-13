@@ -96,7 +96,9 @@ class ProjectSelectionWindow {
      * @return {BackendServer}
      */
     createServer(project){
+        console.log("Creating Server...")
         let server = this._createNewServer(project)
+        console.log("Server Created.")
         this.backendServers.push(server)
         return server
     }
@@ -115,7 +117,7 @@ class ProjectSelectionWindow {
         } else {
             server = this.defaultServer
         }
-
+        console.log("Creating Session...")
         let session = new ProjectSession(project, server, {
             nativeClientKey: this.nativeClientKey
         })
@@ -128,7 +130,7 @@ class ProjectSelectionWindow {
                 }
             })
         }
-
+        console.log("Opening Window...")
         session.openWindow(callback)
         this.activeSessions.set(session.instanceId, session)
     }
