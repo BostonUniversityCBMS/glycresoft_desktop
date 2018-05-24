@@ -57,9 +57,11 @@ function getMaxTasks(callback) {
     })
 }
 
+
 function setAllowExternalUsers(allowExternalUsers) {
     storage.set(ALLOW_EXTERNAL_KEY, allowExternalUsers)
 }
+
 
 function getAllowExternalUsers(callback) {
     storage.get(ALLOW_EXTERNAL_KEY, (err, value) => {
@@ -124,6 +126,9 @@ class ProjectSelectionViewControl {
 
         self.updateProjectDisplay()
 
+        this.projectLocationButton = $("#project-location-btn")
+        this.projectOpenCreateButton = $("#create-project-btn")
+
     }
 
     _updatePort(portInput){
@@ -159,14 +164,13 @@ class ProjectSelectionViewControl {
 
     _setupEventHandlers() {
         const self = this
-        $("#create-project-btn").click(function(){self.createProject()})
+        this.projectLocationButton = $("#project-location-btn")
+        this.projectOpenCreateButton = $("#create-project-btn")
+
+        this.projectOpenCreateButton.click(function(){self.createProject()})
         $("#delete-existing-btn").click(function(){self.deleteProject()})
         $("#load-existing-btn").click(function(){self.openProject()})
-        $("#project-location-btn").click(function(){
-            selectDirectory(function(event, directory){
-                $("#project-location-path").val(directory)
-            })
-        })
+        this.projectLocationButton.click(function(){self.selectProjectLocation()})
 
         $("#logo").click(openDevTools)
 
@@ -180,6 +184,16 @@ class ProjectSelectionViewControl {
 
         $("#allow-external-users").change(function(event) {
             self._updateAllowExternalUsers(this)
+        })
+    }
+
+    selectProjectLocation(){
+        const self = this
+        selectDirectory(function(event, directoryQuery){
+            $("#project-location-path").val(directoryQuery.directory)
+            if (!directoryQuery.is_new) {
+                
+            }
         })
     }
 
@@ -208,6 +222,10 @@ class ProjectSelectionViewControl {
     signalOpenProject(index) {
         ipcRenderer.send("openProject", index)
         this.disableConfigWidgets()
+    }
+
+    signalOpenExistingProject(path) {
+        ipcRenderer.send("openExistingProject", path)
     }
 
     signalDeleteProject(index) {

@@ -214,7 +214,7 @@ class ProjectSession {
             //Set up native-client particulars like SVG to PNG Export on Right-click of SVG Graphics
             self.window.webContents.executeJavaScript(`
             $('body').delegate('svg', 'contextmenu', function(e){
-                saveSVGToPNG(this)
+                saveSVGToFile(this)
             })
 
             $('body').delegate("img", 'contextmenu', function(e){
