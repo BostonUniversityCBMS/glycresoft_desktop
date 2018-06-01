@@ -9,6 +9,21 @@ const storage = require("electron-json-storage")
 const Project = require("./project")
 
 
+function mkdirRecursiveSync(path, mode) {
+    mode = mode || 511;
+    let sep = require('path').sep
+    let parts = require('path').normalize(path).split(sep)
+    for(let i = 0; i < parts.length; i++) {
+        let directory = parts.slice(0, i + 1).join('/');
+        try {
+            fs.lstatSync(directory)
+        } catch (e) {
+            fs.mkdirSync(directory)
+        }
+    }
+}
+
+
 function projectFromObject(obj){
     return new Project(obj)
 }
@@ -75,7 +90,7 @@ function makeNewProjectDirectory(path, name){
     try {
         fs.lstatSync(path)
     } catch (err) {
-        fs.mkdirSync(path)
+        mkdirRecursiveSync(path)
     }
     return path
 }
@@ -85,5 +100,6 @@ module.exports = {
     LoadAllProjects,
     _RemoveAllProjects,
     _RemoveProject,
-    makeNewProjectDirectory
+    makeNewProjectDirectory,
+    mkdirRecursiveSync
 }

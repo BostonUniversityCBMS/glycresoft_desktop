@@ -1,4 +1,4 @@
 rm -rf dist
 npm run pack
-npm run include-server
+bash include-server.sh
 dist/win-unpacked/GlycReSoft.exe

@@ -96,7 +96,9 @@ class ProjectSelectionWindow {
      * @return {BackendServer}
      */
     createServer(project){
+        console.log("Creating Server...")
         let server = this._createNewServer(project)
+        console.log("Server Created.")
         this.backendServers.push(server)
         return server
     }
@@ -115,7 +117,7 @@ class ProjectSelectionWindow {
         } else {
             server = this.defaultServer
         }
-
+        console.log("Creating Session...")
         let session = new ProjectSession(project, server, {
             nativeClientKey: this.nativeClientKey
         })
@@ -128,7 +130,7 @@ class ProjectSelectionWindow {
                 }
             })
         }
-
+        console.log("Opening Window...")
         session.openWindow(callback)
         this.activeSessions.set(session.instanceId, session)
     }
@@ -200,6 +202,7 @@ class ProjectSelectionWindow {
         ipcMain.on("openProject", (event, data) => self.openProject(event, data))
         ipcMain.on("SelectProjectDirectory", (event) => self._selectProjectDirectory(event))
         ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
+        ipcMain.on("openExistingProject", (event, path) => self.openProjectByPath(path))
         ipcMain.on("updatePort", (event, data) => {
             self.options.port = data
         })
@@ -215,8 +218,30 @@ class ProjectSelectionWindow {
         let directory = dialog.showOpenDialog(this.window, {
             properties: ["openDirectory", "createDirectory"]
         })
+        
         console.log("Selected", directory)
-        event.sender.send("ProjectDirectorySelected", directory)
+        if (this.findProjectByPath(directory) !== null) {
+            event.sender.send("ProjectDirectorySelected", {
+                "directory": directory,
+                "is_new": false
+            })
+        } else {
+            let temp = new Project('new-1', directory, 0)
+            // TODO: opening an exsiting project but one not in the index
+            // should add it to the index. Currently, the program does this correctly,
+            // but I haven't traced out why.
+            if (fs.existsSync(directory) && fs.existsSync(temp.storePath)) {
+                event.sender.send("ProjectDirectorySelected", {
+                    "directory": directory,
+                    "is_new": false
+                })  
+            } else {
+                event.sender.send("ProjectDirectorySelected", {
+                    "directory": directory,
+                    "is_new": true
+                })
+            }
+        }
     }
 
     updateProjectDisplay(event){
@@ -229,44 +254,91 @@ class ProjectSelectionWindow {
         this.createWindowForProject(project)
     }
 
+    openProjectByPath(path) {
+        let project = this.findProjectByPath(path)
+        if (project === null) {
+            project = new Project('', path)
+        }
+        this.createProject(project)
+    }
+
     deleteProject(event, tag){
         console.log("Calling deleteProject", tag)
         let project = this.projects[tag]
-        let self = this
         console.log("Target Project", project)
-        _RemoveProject(project, () => self.updateProjectDisplay(event))
-        let paths = PROJECT_STRUCTURE_PATHS.concat([])
-        let clearPaths = (pathArray, callback) => {
-            if (pathArray.length > 0) {
-                let fullPath = path.join(project.path, pathArray[0])
-                console.log("rimraf", fullPath)
-                rimraf(fullPath, (err) => {
-                    if(err) {
-                        console.log("clearPaths::rimraf::error", err, pathArray)
-                    }
-                    clearPaths(pathArray.slice(1), callback)
-                })
+        let self = this
+        let repeatCount = 0
+        for (var i = 0; i < this.projects.length; i++) {
+            let otherProject = this.projects[i]
+            if (i == tag) {
+                continue
             } else {
-                callback()
+                repeatCount += project.path == otherProject.path
             }
         }
-        clearPaths(paths, () => {
-            self.updateProjectDisplay(event)  
-        })
+        // Remove the selected project from the list
+        _RemoveProject(project, () => self.updateProjectDisplay(event))
+        // If there are no redundancies, delete the project's files
+        if (repeatCount == 0) {
+            let paths = PROJECT_STRUCTURE_PATHS.concat([])
+            let clearPaths = (pathArray, callback) => {
+                if (pathArray.length > 0) {
+                    let fullPath = path.join(project.path, pathArray[0])
+                    console.log("rimraf", fullPath)
+                    rimraf(fullPath, (err) => {
+                        if(err) {
+                            console.log("clearPaths::rimraf::error", err, pathArray)
+                        }
+                        clearPaths(pathArray.slice(1), callback)
+                    })
+                } else {
+                    callback()
+                }
+            }
+            clearPaths(paths, () => {
+                self.updateProjectDisplay(event)  
+            })
+        }
     }
 
     createWindowForProject(project) {
         this.openWindowFor(project)
     }
 
+    _checkIfDuplicate(project) {
+        let repeatCount = 0
+        for (var i = 0; i < this.projects.length; i++) {
+            let otherProject = this.projects[i]
+            repeatCount += project.path == otherProject.path
+        }
+        return repeatCount > 0
+    }
+
+    findProjectByPath(path) {
+        for (var i = 0; i < this.projects.length; i++) {
+            let project = this.projects[i]
+            if (project.path == path) {
+                return project
+            }
+        }
+        return null
+    }
+
     createProject(event, obj){
         var project = new Project(obj)
-        var self = this
-        this.projects.push(project)
-        AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
-        console.log("Creating Project", project)
-        this.createWindowForProject(project)
-        console.log("Launching Server")
+        if (this._checkIfDuplicate(project)) {
+            console.log("Project is Duplicate")
+            project = this.findProjectByPath(project.path)
+            console.log("Launching Server")
+            this.createWindowForProject(project)
+        } else {
+            var self = this
+            this.projects.push(project)
+            AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
+            console.log("Creating Project", project)
+            this.createWindowForProject(project)
+            console.log("Launching Server")            
+        }
     }
 
     dropBackendController(server){

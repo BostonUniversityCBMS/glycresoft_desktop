@@ -214,14 +214,37 @@ class ProjectSession {
             //Set up native-client particulars like SVG to PNG Export on Right-click of SVG Graphics
             self.window.webContents.executeJavaScript(`
             $('body').delegate('svg', 'contextmenu', function(e){
-                saveSVGToPNG(this)
+                const remote = require('electron').remote
+                const {Menu, MenuItem} = remote
+                const menu = new Menu()
+                const self = this
+                menu.append(new MenuItem({label: 'Save Image', click(){
+                            saveSVGToFile(self)
+                        }
+                    })
+                )
+                menu.popup({window: remote.getCurrentWindow()})
             })
 
             $('body').delegate("img", 'contextmenu', function(e){
-                saveIMGToPNG(this)
+                const remote = require('electron').remote
+                const {Menu, MenuItem} = remote
+                const menu = new Menu()
+                const self = this
+                menu.append(new MenuItem({label: 'Save Image', click(){
+                    saveIMGToPNG(self)
+                        }
+                    })
+                )
+                menu.popup({window: remote.getCurrentWindow()})
             })
 
             window.nativeClientKey = "${self.nativeClientKey}"
+
+            $('body').delegate('a.external', 'click', function(e){
+                console.log("Opening External URL")
+                openExternalPage(this.href)
+            })
             `)
         })
     }

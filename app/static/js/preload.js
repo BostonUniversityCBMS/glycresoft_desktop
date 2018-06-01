@@ -1,8 +1,8 @@
 console.log("Preload Script Start")
 
 const fs = require("fs")
-const dialog = require("electron").remote.dialog
-const shell = require("electron").remote.shell
+const remote = require('electron').remote
+const {Menu, MenuItem, shell, dialog} = remote
 
 let ExternNativeAPI = {}
 window.ExternNativeAPI = ExternNativeAPI
@@ -16,8 +16,13 @@ class SVGSaver {
         this.canvas.width = this.svgElement.width();     
     }
 
-    draw() {
+    getXMLString() {
         let xml = new XMLSerializer().serializeToString(this.svgElement[0]);
+        return xml
+    }
+
+    draw() {
+        let xml = this.getXMLString();
         this.img.attr("src", "data:image/svg+xml;base64," + btoa(xml));
         let ctx = this.canvas.getContext('2d');
         return ctx.drawImage(this.img[0], 0, 0);
@@ -55,41 +60,66 @@ function imgURIToFile(path, data, callback) {
 }
 
 
-function savePNGDialog(callback) {
+function xmlToFile(path, data, callback) {
+    fs.writeFile(path, data, err => {
+        if (err) {
+            console.log("xmlToFile Error", err)
+        }
+        if (callback !== undefined){
+            callback(path)
+        }
+    })   
+}
+
+
+function saveImageDialog(callback, formats) {
+    if (formats === undefined) {
+        formats = [
+            { name: 'PNG', extensions: ['png']}
+        ]
+    }
     dialog.showSaveDialog({
         title: "Save File",
         defaultPath: "figure.png",
-        filters: [
-            { name: 'All Files', extensions: ['*']},
-            { name: 'PNG', extensions: ['png']}
-        ]
+        filters: formats
     }, callback)
 }
 
 
-function saveImage(uri, callback){
-    savePNGDialog((path) => {
-        imgURIToFile(path, uri, callback)
-    })
-}
-
-
-function saveSVGToPNG(svgElement) {
+function saveSVGToFile(svgElement, callback) {
     const saver = new SVGSaver($(svgElement))
     saver.draw()
-    const uri = saver.canvas.toDataURL()
-    saveImage(uri)
+    saveImageDialog(function(path){
+        if (path === undefined) {
+            return
+        }
+        else if (path.endsWith("png")) {
+            const uri = saver.canvas.toDataURL()
+            imgURIToFile(path, uri, callback)
+        }
+        else if (path.endsWith("svg")) {
+            const xml = saver.getXMLString()
+            xmlToFile(path, xml, callback)
+        }
+
+    }, [
+        { name: 'PNG', extensions: ['png']},
+        { name: 'SVG', extensions: ['svg']}
+    ])
 }
 
 
-function saveIMGToPNG(imgElement) {
-    saveImage(
-        PNGToURI($(imgElement)))
+function saveIMGToPNG(imgElement, callback) {
+    const uri = PNGToURI($(imgElement))
+    saveImageDialog(function(path){
+        const uri = saver.canvas.toDataURL()
+        imgURIToFile(path, uri, callback)
+    }, [{name: "PNG", extensions: ['png']}])
 }
 
 
 window.SVGSaver = ExternNativeAPI.SVGSaver = SVGSaver
-window.saveSVGToPNG = ExternNativeAPI.saveSVGToPNG = saveSVGToPNG
+window.saveSVGToFile = ExternNativeAPI.saveSVGToFile = saveSVGToFile
 window.saveIMGToPNG = ExternNativeAPI.saveIMGToPNG = saveIMGToPNG
 
 function nativeClientMultiFileDownloadDirectory(callback){
@@ -110,3 +140,4 @@ function openDirectoryExternal(path) {
 }
 
 window.openDirectoryExternal = ExternNativeAPI.openDirectoryExternal = openDirectoryExternal
+window.openExternalPage = ExternNativeAPI.openExternalPage = shell.openExternal
