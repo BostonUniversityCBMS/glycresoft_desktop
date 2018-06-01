@@ -1,8 +1,8 @@
 console.log("Preload Script Start")
 
 const fs = require("fs")
-const dialog = require("electron").remote.dialog
-const shell = require("electron").remote.shell
+const remote = require('electron').remote
+const {Menu, MenuItem, shell, dialog} = remote
 
 let ExternNativeAPI = {}
 window.ExternNativeAPI = ExternNativeAPI
@@ -140,3 +140,4 @@ function openDirectoryExternal(path) {
 }
 
 window.openDirectoryExternal = ExternNativeAPI.openDirectoryExternal = openDirectoryExternal
+window.openExternalPage = ExternNativeAPI.openExternalPage = shell.openExternal

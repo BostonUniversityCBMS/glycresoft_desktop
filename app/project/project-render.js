@@ -9,18 +9,15 @@ const projectStorage = require("./project-storage")
 const Project = require("./project")
 const LoadAllProjects = projectStorage.LoadAllProjects
 const makeNewProjectDirectory = projectStorage.makeNewProjectDirectory
+const mkdirRecursiveSync = projectStorage.mkdirRecursiveSync
 
 const ipcRenderer = require("electron").ipcRenderer
+const app = require("electron").remote.app
+const dialog = require("electron").remote.dialog
+const remote = require("electron").remote
 
-
-function makeProjectFromDOM(){
-    var path = $("#project-location-path").val()
-    var name = $("#project-name").val()
-    $("#project-name").val("")
-    $("#project-location-path").val("")
-    path = makeNewProjectDirectory(path, name)
-    return new Project(name, path)
-}
+const pathlib = require("path")
+const fs = require("fs")
 
 
 function selectDirectory(callback){
@@ -36,6 +33,8 @@ function openDevTools(){
 const PORT_STORAGE_KEY = "GLYCRESOFT-PORT"
 const MAX_TASKS_KEY = "GLYCRESOFT-MAX-TASKS"
 const ALLOW_EXTERNAL_KEY = "GLYCRESOFT-ALLOW-EXTERNAL"
+
+const DEFAULT_PROJECT_DIRECTORY = pathlib.join(app.getPath("documents"), "GlycReSoft\ Projects")
 
 
 function setMaxTasks(maxTasks) {
@@ -131,6 +130,27 @@ class ProjectSelectionViewControl {
 
     }
 
+    _makeProjectFromDOM(){
+        var path = $("#project-location-path").val().trim()
+        // var name = $("#project-name").val().trim()
+        name = ""
+        if (path === "") {
+            path = DEFAULT_PROJECT_DIRECTORY
+            try {
+                fs.lstatSync(path)
+            } catch (e) {
+                console.log("Creating default storage directory", path)
+                mkdirRecursiveSync(path)
+            }
+        }
+        if (name.trim() !== "") {
+            $("#project-name").val("")
+            $("#project-location-path").val("")
+        }
+        path = makeNewProjectDirectory(path, name)
+        return new Project(name, path)
+    }
+
     _updatePort(portInput){
         let value = portInput.value
         if(value === "") {
@@ -165,9 +185,6 @@ class ProjectSelectionViewControl {
     _setupEventHandlers() {
         const self = this
         this.projectLocationButton = $("#project-location-btn")
-        this.projectOpenCreateButton = $("#create-project-btn")
-
-        this.projectOpenCreateButton.click(function(){self.createProject()})
         $("#delete-existing-btn").click(function(){self.deleteProject()})
         $("#load-existing-btn").click(function(){self.openProject()})
         this.projectLocationButton.click(function(){self.selectProjectLocation()})
@@ -194,6 +211,7 @@ class ProjectSelectionViewControl {
             if (!directoryQuery.is_new) {
                 
             }
+            self.openOrCreateProject()
         })
     }
 
@@ -205,7 +223,7 @@ class ProjectSelectionViewControl {
         if(color === undefined){
             color = 'black'
         }
-        $("#flash-message").html(message).css({"color": color})
+        Materialize.toast(message, 4000, color)
     }
 
     deleteProject(){
@@ -229,13 +247,28 @@ class ProjectSelectionViewControl {
     }
 
     signalDeleteProject(index) {
-        ipcRenderer.send("deleteProject", index)   
+        let choice = dialog.showMessageBox(remote.getCurrentWindow(), {
+            type: "question",
+            buttons: ["Yes", "No"],
+            title: 'Confirm',
+            message: `Are you sure you want to delete "${this.projects[index].path}"?`
+        })
+        if (choice === 0) {
+            this.flashMessage(`Removing project ${this.projects[index].path}...`, 'red')
+            ipcRenderer.send("deleteProject", index)
+        }
     }
 
-    createProject(){
-        let proj = makeProjectFromDOM()
-        ipcRenderer.send("createProject", proj)
-        this.disableConfigWidgets()
+    openOrCreateProject(){
+        let proj = this._makeProjectFromDOM()
+        console.log("Created Project", proj)
+        if (proj.name === "" && proj.path == DEFAULT_PROJECT_DIRECTORY) {
+            this.flashMessage("You must provide a project name", 'red')
+            return
+        } else {
+            ipcRenderer.send("createProject", proj)
+            this.disableConfigWidgets()
+        }
     }
 
     updateProjectDisplay(){
@@ -265,7 +298,7 @@ class ProjectSelectionViewControl {
              data-name="${project.name}" data-index="${index}">
             <div class='clearfix'>
             <span class="project-name-display left tooltipped" style='width:90%;' data-tooltip='${project.path}'>
-                ${project.name} <small>${pathPrefix}</small>
+                <a class="mdi mdi-folder"></a> ${project.name} <small>${pathPrefix}</small>
             </span>
             <span>
                 <a class='delete-project right mdi mdi-close'></a>

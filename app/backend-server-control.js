@@ -69,11 +69,6 @@ class BackendServer {
             cmdStr += " -m -e"
         }
         return cmdStr
-        // console.log(cmdStr)
-        // return (
-        //     this.EXECUTABLE + "\"" + this.project.storePath +
-        //     "\" --port " + this.port + " -b \"" + this.project.path + "\"" +
-        //     " --native-client-key \"" + this.nativeClientKey + "\"")
     }
 
     launchServer(callback, n) {

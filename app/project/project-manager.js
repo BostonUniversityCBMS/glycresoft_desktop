@@ -218,6 +218,7 @@ class ProjectSelectionWindow {
         let directory = dialog.showOpenDialog(this.window, {
             properties: ["openDirectory", "createDirectory"]
         })
+        
         console.log("Selected", directory)
         if (this.findProjectByPath(directory) !== null) {
             event.sender.send("ProjectDirectorySelected", {
@@ -227,7 +228,8 @@ class ProjectSelectionWindow {
         } else {
             let temp = new Project('new-1', directory, 0)
             // TODO: opening an exsiting project but one not in the index
-            // should add it to the index
+            // should add it to the index. Currently, the program does this correctly,
+            // but I haven't traced out why.
             if (fs.existsSync(directory) && fs.existsSync(temp.storePath)) {
                 event.sender.send("ProjectDirectorySelected", {
                     "directory": directory,
