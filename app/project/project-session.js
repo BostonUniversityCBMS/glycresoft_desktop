@@ -242,6 +242,7 @@ class ProjectSession {
             window.nativeClientKey = "${self.nativeClientKey}"
 
             $('body').delegate('a.external', 'click', function(e){
+                e.preventDefault()
                 console.log("Opening External URL")
                 openExternalPage(this.href)
             })
