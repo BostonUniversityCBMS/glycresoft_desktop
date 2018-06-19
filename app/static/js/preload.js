@@ -112,7 +112,6 @@ function saveSVGToFile(svgElement, callback) {
 function saveIMGToPNG(imgElement, callback) {
     const uri = PNGToURI($(imgElement))
     saveImageDialog(function(path){
-        const uri = saver.canvas.toDataURL()
         imgURIToFile(path, uri, callback)
     }, [{name: "PNG", extensions: ['png']}])
 }
