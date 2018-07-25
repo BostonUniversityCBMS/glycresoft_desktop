@@ -4,6 +4,8 @@ const electron = require('electron')
 const app = electron.app
 app.disableHardwareAcceleration()
 
+const log = require("electron-log")
+
 const {appUpdater} = require('./update-check');
 
 
@@ -51,14 +53,14 @@ function createProjectManager() {
     page.once('did-frame-finish-load', () => {
         const checkOS = isWindowsOrmacOS()
         if (checkOS) {
-            console.log("Checking for updates")
+            log.log("Checking for updates")
             appUpdater()
         }
     })
 }
 
 const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {
-    console.log("Application Run Invocation", argv, workingDirectory)
+    log.log("Application Run Invocation", argv, workingDirectory)
     showProjectManager()
 })
 
@@ -69,4 +71,4 @@ if (shouldQuit){
 
 app.on("ready", createProjectManager)
 
-console.log("Setup Done")
+log.log("Application Setup Done")

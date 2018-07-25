@@ -9,6 +9,7 @@ const ipcMain = electron.ipcMain
 const Project = require("./project")
 const path = require("path")
 const storage = require("electron-json-storage")
+const log = require("electron-log")
 
 const {PROJECTS_KEY, PROJECT_FILE, VERSION, PROJECT_STRUCTURE_PATHS} = require("./constants")
 
@@ -57,7 +58,7 @@ class ProjectSelectionWindow {
         })
 
         process.on("exit", function(){
-            console.log("Process Exit: Cleaning up servers")
+            log.log("Process Exit: Cleaning up servers")
             self.cleanUpServers()
         })
     }
@@ -72,7 +73,7 @@ class ProjectSelectionWindow {
         let maxTasks = this.options.maxTasks === undefined ? 1 : this.options.maxTasks
         let allowExternalUsers = this.options.allowExternalUsers === undefined ? false : this.options.allowExternalUsers
         let terminateCallback = function(){
-            console.log("Create Server callback")
+            log.log("Create Server callback")
         }
 
         let serverOptions = {
@@ -96,9 +97,9 @@ class ProjectSelectionWindow {
      * @return {BackendServer}
      */
     createServer(project){
-        console.log("Creating Server...")
+        log.log("Creating Server...")
         let server = this._createNewServer(project)
-        console.log("Server Created.")
+        log.log("Server Created.")
         this.backendServers.push(server)
         return server
     }
@@ -117,7 +118,7 @@ class ProjectSelectionWindow {
         } else {
             server = this.defaultServer
         }
-        console.log("Creating Session...")
+        log.log("Creating Session...")
         let session = new ProjectSession(project, server, {
             nativeClientKey: this.nativeClientKey
         })
@@ -130,14 +131,14 @@ class ProjectSelectionWindow {
                 }
             })
         }
-        console.log("Opening Window...")
+        log.log("Opening Window...")
         session.openWindow(callback)
         this.activeSessions.set(session.instanceId, session)
     }
 
 
     removeSession(session){
-        console.log("Removing Session from Active Session Map", session.instanceId)
+        log.log("Removing Session from Active Session Map", session.instanceId)
         this.activeSessions.delete(session.instanceId)
     }
 
@@ -151,7 +152,7 @@ class ProjectSelectionWindow {
     }
 
     cleanUpServers(){
-        console.log("Cleaning up servers", this.backendServers.length)
+        log.log("Cleaning up servers", this.backendServers.length)
         for(var i = 0; i < this.backendServers.length;i++){
             var controller = this.backendServers[i]
             controller.terminateServer()
@@ -161,19 +162,19 @@ class ProjectSelectionWindow {
     _setupWindowCloseBehavior(){
         let self = this
         self.window.on("close", function(e){
-            console.log("Closing ProjectSelectionWindow")
+            log.log("Closing ProjectSelectionWindow")
             self.terminated = true
             self.window = null
-            console.log(`${self.activeSessions.size} sessions still active`)
+            log.log(`${self.activeSessions.size} sessions still active`)
             // There are no other tasks open, so we can terminate completely.
             if (!self.shutdownIfAllSessionsClosed()) {
-                console.log("Active sessions remaining. Cannot Quit")
+                log.log("Active sessions remaining. Cannot Quit")
             }
         })
     }
 
     _reallyQuit(){
-        console.log("Really quitting")
+        log.log("Really quitting")
         setTimeout(() => {
             app.releaseSingleInstance()
             app.quit()
@@ -219,7 +220,7 @@ class ProjectSelectionWindow {
             properties: ["openDirectory", "createDirectory"]
         })
         
-        console.log("Selected", directory)
+        log.log("Selected", directory)
         if (this.findProjectByPath(directory) !== null) {
             event.sender.send("ProjectDirectorySelected", {
                 "directory": directory,
@@ -250,7 +251,7 @@ class ProjectSelectionWindow {
 
     openProject(event, tag){
         let project = this.projects[tag]
-        console.log("Open Project", project)
+        log.log("Open Project", project)
         this.createWindowForProject(project)
     }
 
@@ -263,9 +264,9 @@ class ProjectSelectionWindow {
     }
 
     deleteProject(event, tag){
-        console.log("Calling deleteProject", tag)
+        log.log("Calling deleteProject", tag)
         let project = this.projects[tag]
-        console.log("Target Project", project)
+        log.log("Target Project", project)
         let self = this
         let repeatCount = 0
         for (var i = 0; i < this.projects.length; i++) {
@@ -284,10 +285,10 @@ class ProjectSelectionWindow {
             let clearPaths = (pathArray, callback) => {
                 if (pathArray.length > 0) {
                     let fullPath = path.join(project.path, pathArray[0])
-                    console.log("rimraf", fullPath)
+                    log.log("rimraf", fullPath)
                     rimraf(fullPath, (err) => {
                         if(err) {
-                            console.log("clearPaths::rimraf::error", err, pathArray)
+                            log.log("clearPaths::rimraf::error", err, pathArray)
                         }
                         clearPaths(pathArray.slice(1), callback)
                     })
@@ -327,17 +328,17 @@ class ProjectSelectionWindow {
     createProject(event, obj){
         var project = new Project(obj)
         if (this._checkIfDuplicate(project)) {
-            console.log("Project is Duplicate")
+            log.log("Project is Duplicate")
             project = this.findProjectByPath(project.path)
-            console.log("Launching Server")
+            log.log("Launching Server")
             this.createWindowForProject(project)
         } else {
             var self = this
             this.projects.push(project)
             AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
-            console.log("Creating Project", project)
+            log.log("Creating Project", project)
             this.createWindowForProject(project)
-            console.log("Launching Server")            
+            log.log("Launching Server")            
         }
     }
 

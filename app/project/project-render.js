@@ -16,6 +16,8 @@ const app = require("electron").remote.app
 const dialog = require("electron").remote.dialog
 const remote = require("electron").remote
 
+const log = require("electron-log")
+
 const pathlib = require("path")
 const fs = require("fs")
 
@@ -45,13 +47,13 @@ function setMaxTasks(maxTasks) {
 function getMaxTasks(callback) {
     storage.get(MAX_TASKS_KEY, (err, value) => {
         if (err) {
-            console.log(err)
+            log.log(err)
         }
         if (value === undefined || value === null || value == "" || _.isEqual(value, {})) {
             value = 1
             setMaxTasks(value)
         }
-        console.log("Loaded Max Task Count", value)
+        log.log("Loaded Max Task Count", value)
         callback(value)
     })
 }
@@ -65,13 +67,13 @@ function setAllowExternalUsers(allowExternalUsers) {
 function getAllowExternalUsers(callback) {
     storage.get(ALLOW_EXTERNAL_KEY, (err, value) => {
         if (err) {
-            console.log(err)
+            log.log(err)
         }
         if (value === undefined || value === null || value === "" || _.isEqual(value, {})) {
             value = false
             setAllowExternalUsers(value)
         }
-        console.log("Loaded AllowExternalUsers", value)
+        log.log("Loaded AllowExternalUsers", value)
         callback(value)
     })
 }
@@ -85,13 +87,13 @@ function setPort(portValue){
 function getPort(callback){
     storage.get(PORT_STORAGE_KEY, (err, value) => {
         if (err) {
-            console.log(err)
+            log.log(err)
         }
         if (value === undefined || value === null || value == "" || _.isEqual(value, {})) {
             value = 8001
             setPort(value)
         }
-        console.log("Loaded Port Number", value)
+        log.log("Loaded Port Number", value)
         callback(value)
     })
 }
@@ -106,7 +108,7 @@ class ProjectSelectionViewControl {
         this._setupEventHandlers()
 
         getPort((value) => {
-            console.log("Port", value)
+            log.log("Port", value)
             $("#application-port-entry").val(value)
             ipcRenderer.send("updatePort", value)
         })
@@ -139,7 +141,7 @@ class ProjectSelectionViewControl {
             try {
                 fs.lstatSync(path)
             } catch (e) {
-                console.log("Creating default storage directory", path)
+                log.log("Creating default storage directory", path)
                 mkdirRecursiveSync(path)
             }
         }
@@ -261,7 +263,7 @@ class ProjectSelectionViewControl {
 
     openOrCreateProject(){
         let proj = this._makeProjectFromDOM()
-        console.log("Created Project", proj)
+        log.log("Created Project", proj)
         if (proj.name === "" && proj.path == DEFAULT_PROJECT_DIRECTORY) {
             this.flashMessage("You must provide a project name", 'red')
             return

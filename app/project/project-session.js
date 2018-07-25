@@ -5,6 +5,7 @@ const child_process = require("child_process")
 const deepClone = require('lodash/cloneDeep')
 const electron = require("electron")
 const {session} = require('electron')
+const log = require("electron-log")
 const app = electron.app
 const dialog = electron.dialog
 const ipcMain = electron.ipcMain
@@ -104,7 +105,7 @@ class ProjectSession {
 
     checkTasksBeforeClose(e) {
         let self = this
-        console.log((`Preparing to close Window For Project "${self.project.path}" ` +
+        log.log((`Preparing to close Window For Project "${self.project.path}" ` +
                      `with session id ${self.sessionId} with checkIfClose value ` +
                      `${self.checkIfClose}`))
         if (self.checkIfClose) {
@@ -123,7 +124,7 @@ class ProjectSession {
                         "buttons": ["Okay", "Cancel", "Stop Tasks"],
                     },
                     (response) => {
-                        console.log("Choice", response)
+                        log.log("Choice", response)
                         if(response == 2) {
                             self.endTasks()
                         }
@@ -132,7 +133,7 @@ class ProjectSession {
                         }
                     })
                 } else {
-                    console.log("No tasks pending. Quit right away.")
+                    log.log("No tasks pending. Quit right away.")
                     self.reallyQuit()
                 }
             })
@@ -194,12 +195,12 @@ class ProjectSession {
         this.window.webContents.session.cookies.set(
             projectSessionIdCookie, (error) => {
             if (error) {
-                console.log("Error while setting cookie", error)
+                log.log("Error while setting cookie", error)
             }
             self.window.webContents.session.cookies.set(
                 secretKeyCookie, (error) => {
                     if (error) {
-                        console.log("Error while setting cookie", error)
+                        log.log("Error while setting cookie", error)
                     }
                     self._prepareWindowForDisplay(callback)
             })
@@ -243,7 +244,7 @@ class ProjectSession {
 
             $('body').delegate('a.external', 'click', function(e){
                 e.preventDefault()
-                console.log("Opening External URL")
+                console.log("Opening External URL", this.href)
                 openExternalPage(this.href)
             })
             `)

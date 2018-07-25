@@ -5,6 +5,7 @@ const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
 const fs = require('fs')
 const os_path = require("path")
 const rimraf = require("rimraf")
+const log = require("electron-log")
 const storage = require("electron-json-storage")
 const Project = require("./project")
 
@@ -31,14 +32,14 @@ function projectFromObject(obj){
 
 function AddProjectToLocalStorage(project, callback){
     return storage.get(PROJECTS_KEY, function(err, value){
-        console.log(arguments)
+        log.log(arguments)
         if((value === undefined) || (value === null || value.length === undefined)){
             value = [];
         }
         value.push(project)
         storage.set(PROJECTS_KEY, value, function(err){
             if (err) {
-                console.log("Error in AddProjectToLocalStorage", err)
+                log.log("Error in AddProjectToLocalStorage", err)
             }
             callback()
         })
@@ -61,7 +62,7 @@ function _RemoveAllProjects(callback){
 
 
 function _RemoveProject(project, callback){
-    console.log("Call to _RemoveProject on ", project.path)
+    log.log("Call to _RemoveProject on ", project.path)
     storage.get(PROJECTS_KEY, function(err, value){
         if(value === undefined || value === null){
             value = [];
@@ -76,7 +77,7 @@ function _RemoveProject(project, callback){
         }
         storage.set(PROJECTS_KEY, filter, function(err) {
             if (err) {
-                console.log("Error in RemoveProject", err)
+                log.log("Error in RemoveProject", err)
             }
             callback()
         })
