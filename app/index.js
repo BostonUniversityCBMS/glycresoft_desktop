@@ -5,6 +5,7 @@ const app = electron.app
 app.disableHardwareAcceleration()
 
 const log = require("electron-log")
+log.transports.file.level = 'info'
 
 const {appUpdater} = require('./update-check');
 
@@ -25,7 +26,6 @@ let nativeClientKey = serverConfig.configManager.makeSecretToken()
 function isWindowsOrmacOS() {
     return process.platform === 'darwin' || process.platform === 'win32';
 }
-
 
 function showProjectManager(callback){
     if(ProjectSelectionController.window === null){
