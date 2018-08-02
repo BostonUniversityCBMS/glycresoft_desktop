@@ -251,16 +251,15 @@ class ProjectSession {
         })
     }
 
-    openWindow(callback) {
+    openWindow(callback, options) {
         var self = this
-
         let task = () => {
             self.backendServer.registerProjectSession(self.project, (registration) => {
                 let windowConfig = {}
                 windowConfig.projectBackendId = registration.project_id
                 self.backendServer.addSession(self)
                 self.createWindow(windowConfig, callback)
-            })
+            }, options)
         }
 
         if(this.backendServer.hasStartedProcess) {
