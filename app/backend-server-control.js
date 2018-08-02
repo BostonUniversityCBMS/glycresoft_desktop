@@ -28,6 +28,7 @@ class BackendServer {
         this.protocol = options.protocol === undefined ? "http:" : options.protocol
         this.multiuser = options.allowExternalUsers === undefined ? false : options.allowExternalUsers
         this.maxTasks = options.maxTasks === undefined ? 1 : options.maxTasks
+        this.validateProjects = options.validateProjects === undefined ? false : true
         this.host = options.host === undefined ? "127.0.0.1" : options.host
         this.nativeClientKey = (options.nativeClientKey === undefined ? serverConfig.makeSecretToken() : options.nativeClientKey)
         if(options.port === undefined) {
@@ -68,7 +69,10 @@ class BackendServer {
 -b "${this.project.path}" --native-client-key "${this.nativeClientKey}"
 -t ${this.maxTasks}`.replace(/\n/g, " ");
         if(this.multiuser) {
-            cmdStr += " -m -e"
+            cmdStr += " -m -e "
+        }
+        if(this.validateProjects) {
+            cmdStr += " -v "
         }
         return cmdStr
     }
@@ -116,14 +120,16 @@ class BackendServer {
 
     }
 
-    registerProjectSession(project, callback) {
+    registerProjectSession(project, callback, options) {
+        options = options === undefined ? {} : options;
+        var validate = options.validate === undefined ? false : options.validate
         var url = this.url
         var self = this
         var payload = {
             "connection_string": project.storePath,
-            "basepath": project.path
+            "basepath": project.path,
+            "validate": validate
         }
-
         var postData = querystring.stringify(payload)
         var requestOptions = {
             host: this.host,
@@ -144,7 +150,8 @@ class BackendServer {
                 buffer.push(chunk);
             });
             res.on('end', () => {
-                let responseData = JSON.parse(buffer.join(""));
+                let responseData = {}
+                responseData = JSON.parse(buffer.join(""));
                 callback(responseData);
             });
         })
