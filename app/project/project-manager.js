@@ -110,7 +110,7 @@ class ProjectSelectionWindow {
      * opened and added to `activeSessions`.
      * @param  {Project}
      */
-    openWindowFor(project){
+    openWindowFor(project, options){
         let server = null
         let self = this
         if (this.defaultServer === undefined) {
@@ -131,8 +131,8 @@ class ProjectSelectionWindow {
                 }
             })
         }
-        log.log("Opening Window...")
-        session.openWindow(callback)
+        log.log("Opening Window...", options)
+        session.openWindow(callback, options)
         this.activeSessions.set(session.instanceId, session)
     }
 
@@ -252,7 +252,7 @@ class ProjectSelectionWindow {
     openProject(event, tag){
         let project = this.projects[tag]
         log.log("Open Project", project)
-        this.createWindowForProject(project)
+        this.createWindowForProject(project, {validate: false})
     }
 
     openProjectByPath(path) {
@@ -260,7 +260,8 @@ class ProjectSelectionWindow {
         if (project === null) {
             project = new Project('', path)
         }
-        this.createProject(project)
+        log.log("openProjectByPath", project)
+        this.createProject(project, {validate: true})
     }
 
     deleteProject(event, tag){
@@ -302,8 +303,8 @@ class ProjectSelectionWindow {
         }
     }
 
-    createWindowForProject(project) {
-        this.openWindowFor(project)
+    createWindowForProject(project, options) {
+        this.openWindowFor(project, options)
     }
 
     _checkIfDuplicate(project) {
@@ -325,19 +326,22 @@ class ProjectSelectionWindow {
         return null
     }
 
-    createProject(event, obj){
+    createProject(event, obj, options){
+        options = options === undefined ? {} : options
+        log.log("createProject", options)
         var project = new Project(obj)
         if (this._checkIfDuplicate(project)) {
             log.log("Project is Duplicate")
             project = this.findProjectByPath(project.path)
             log.log("Launching Server")
-            this.createWindowForProject(project)
+            options.validate = true
+            this.createWindowForProject(project, options)
         } else {
             var self = this
             this.projects.push(project)
             AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
             log.log("Creating Project", project)
-            this.createWindowForProject(project)
+            this.createWindowForProject(project, options)
             log.log("Launching Server")            
         }
     }
