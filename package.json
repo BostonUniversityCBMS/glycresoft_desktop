@@ -1,6 +1,6 @@
 {
   "name": "GlycReSoft",
-  "version": "0.3.6",
+  "version": "0.3.10",
   "description": "",
   "main": "app/index.js",
   "private": true,
@@ -25,6 +25,7 @@
     }
   },
   "dependencies": {
+    "electron-log": "^2.2.16",
     "electron-squirrel-startup": "^1.0.0",
     "localforage": "^1.4.2",
     "lodash": "^4.17.4",
