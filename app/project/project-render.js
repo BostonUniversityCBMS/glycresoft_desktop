@@ -1,4 +1,5 @@
 "use strict"
+const { promisify } = require("util")
 
 // const $ = require("../static/js/jquery")
 const $ = window.$
@@ -7,14 +8,13 @@ const _ = require("../static/js/lodash")
 const storage = require("electron-json-storage")
 const projectStorage = require("./project-storage")
 const Project = require("./project")
+const { PROJECTS_KEY } = require("./constants")
 const LoadAllProjects = projectStorage.LoadAllProjects
 const makeNewProjectDirectory = projectStorage.makeNewProjectDirectory
 const mkdirRecursiveSync = projectStorage.mkdirRecursiveSync
 
-const ipcRenderer = require("electron").ipcRenderer
-const app = require("electron").remote.app
-const dialog = require("electron").remote.dialog
-const remote = require("electron").remote
+const {ipcRenderer, remote} = require("electron")
+const app = remote.app
 
 const log = require("electron-log")
 
@@ -37,6 +37,8 @@ const MAX_TASKS_KEY = "GLYCRESOFT-MAX-TASKS"
 const ALLOW_EXTERNAL_KEY = "GLYCRESOFT-ALLOW-EXTERNAL"
 
 const DEFAULT_PROJECT_DIRECTORY = pathlib.join(app.getPath("documents"), "GlycReSoft\ Projects")
+
+storage.setDataPath(app.getPath("userData"))
 
 
 function setMaxTasks(maxTasks) {
@@ -135,7 +137,7 @@ class ProjectSelectionViewControl {
     _makeProjectFromDOM(){
         var path = $("#project-location-path").val().trim()
         // var name = $("#project-name").val().trim()
-        name = ""
+        let name = ""
         if (path === "") {
             path = DEFAULT_PROJECT_DIRECTORY
             try {
@@ -169,7 +171,7 @@ class ProjectSelectionViewControl {
         if(value === ""){
             value = 1
             countInput.value = value
-        } 
+        }
         setMaxTasks(value)
         ipcRenderer.send("updateMaxTasks", value)
     }
@@ -187,9 +189,9 @@ class ProjectSelectionViewControl {
     _setupEventHandlers() {
         const self = this
         this.projectLocationButton = $("#project-location-btn")
-        $("#delete-existing-btn").click(function(){self.deleteProject()})
-        $("#load-existing-btn").click(function(){self.openProject()})
-        this.projectLocationButton.click(function(){self.selectProjectLocation()})
+        $("#delete-existing-btn").click(() => self.deleteProject())
+        $("#load-existing-btn").click(() => self.openProject())
+        this.projectLocationButton.click(() => self.selectProjectLocation())
 
         $("#logo").click(openDevTools)
 
@@ -208,10 +210,10 @@ class ProjectSelectionViewControl {
 
     selectProjectLocation(){
         const self = this
-        selectDirectory(function(event, directoryQuery){
+        selectDirectory((event, directoryQuery) => {
             $("#project-location-path").val(directoryQuery.directory)
             if (!directoryQuery.is_new) {
-                
+                // Some special logic here if necessary, reason lost to time why it is empty.
             }
             self.openOrCreateProject()
         })
@@ -229,12 +231,12 @@ class ProjectSelectionViewControl {
     }
 
     deleteProject(){
-        var selectProjectTag = $("select#existing-project"); 
+        const selectProjectTag = $("select#existing-project");
         this.signalDeleteProject(selectProjectTag.val())
     }
 
     openProject(){
-        var selectProjectTag = $("select#existing-project");
+        const selectProjectTag = $("select#existing-project");
         this.signalOpenProject(selectProjectTag.val())
         this.disableConfigWidgets()
     }
@@ -244,21 +246,23 @@ class ProjectSelectionViewControl {
         this.disableConfigWidgets()
     }
 
+    async loadProjects() {
+        return promisify(storage.get)(PROJECTS_KEY).then((projects) => {
+            return projects.map((p) => new Project(p))
+        })
+    }
+
     signalOpenExistingProject(path) {
         ipcRenderer.send("openExistingProject", path)
     }
 
     signalDeleteProject(index) {
-        let choice = dialog.showMessageBox(remote.getCurrentWindow(), {
-            type: "question",
-            buttons: ["Yes", "No"],
-            title: 'Confirm',
-            message: `Are you sure you want to delete "${this.projects[index].path}"?`
+        ipcRenderer.invoke("signalDeleteProject", {index, path: this.projects[index].path}).then((choice) => {
+            if (choice === 0) {
+                this.flashMessage(`Removing project ${this.projects[index].path}...`, 'red')
+                ipcRenderer.send("deleteProject", index)
+            }
         })
-        if (choice === 0) {
-            this.flashMessage(`Removing project ${this.projects[index].path}...`, 'red')
-            ipcRenderer.send("deleteProject", index)
-        }
     }
 
     openOrCreateProject(){
@@ -275,7 +279,7 @@ class ProjectSelectionViewControl {
 
     updateProjectDisplay(){
         var self = this
-        LoadAllProjects(function(projects, err){
+        this.loadProjects().then((projects) => {
             var existingContainer = $("#load-existing-project-container");
 
             if(projects == null || projects.length == 0){

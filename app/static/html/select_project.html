@@ -47,9 +47,9 @@
         */
         if(window.jQuery === undefined){
             if(require("electron") !== undefined){
-                require('electron').remote.process.mainModule.paths.forEach(function(path) {
-                    require('module').globalPaths.push(path);
-                });
+                //require('electron').remote.process.mainModule.paths.forEach(function(path) {
+                //    require('module').globalPaths.push(path);
+                //});
                 window.$ = window.jQuery = require("jquery")
                 window.Hammer = require("hammerjs")
             }
@@ -61,7 +61,7 @@
         const rimraf = require("rimraf")
         const _ = require("../js/lodash")
         const ProjectSelectionViewControl = require("../../project/project-render")
-        var Controller = null
+        let Controller = null
         $(function(){
             Controller = new ProjectSelectionViewControl($("#project-selection-view"))
             $("#config-options").hide()
@@ -90,7 +90,7 @@
     <div id='project-selection-view' class='container' style='margin-top: 15px;'>
         <div class="row">
             <span id='flash-message'>
-                
+
             </span>
         </div>
         <div class='row'>

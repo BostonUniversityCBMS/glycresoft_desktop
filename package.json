@@ -1,6 +1,6 @@
 {
   "name": "GlycReSoft",
-  "version": "0.4.3",
+  "version": "0.4.5",
   "description": "",
   "main": "app/index.js",
   "private": true,
@@ -25,17 +25,18 @@
     }
   },
   "dependencies": {
-    "electron-log": "^2.2.16",
+    "electron-json-storage": "^4.5.0",
+    "electron-log": "^4.4.4",
     "electron-squirrel-startup": "^1.0.0",
     "localforage": "^1.4.2",
     "lodash": "^4.17.4",
     "rimraf": "^2.5.2"
   },
   "devDependencies": {
-    "electron-builder": "^5.7.0",
-    "electron-packager": "^7.1.0",
-    "electron-prebuilt": "^1.4.13",
-    "electron-winstaller": "^2.3.1",
+    "electron": "^12.2.3",
+    "electron-builder": "^22.14.5",
+    "electron-packager": "^15.4.0",
+    "electron-winstaller": "^5.0.0",
     "png-to-ico": "^1.0.2",
     "winresourcer": "^0.9.0"
   }

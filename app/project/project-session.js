@@ -12,9 +12,12 @@ const ipcMain = electron.ipcMain
 const net = electron.net
 
 const WINDOW_OPTIONS = {
-    "title": "GlycReSoft",
-    "webPreferences": {
-        "preload": path.join(__dirname, "..", "static/js/preload.js")
+    title: "GlycReSoft",
+    webPreferences: {
+        preload: path.join(__dirname, "..", "static/js/preload.js"),
+        nodeIntegration: true,
+        contextIsolation: false,
+        enableRemoteModule: true
     }
 }
 
@@ -73,7 +76,7 @@ class ProjectSession {
                 if(callback !== undefined) {
                     callback(result)
                 }
-            })            
+            })
         })
         request.end()
     }
@@ -93,7 +96,7 @@ class ProjectSession {
                 if(callback !== undefined) {
                     callback(buffer.join(""))
                 }
-            })            
+            })
         })
         request.end()
     }
@@ -113,8 +116,8 @@ class ProjectSession {
 
             self.pendingTasks((tasks) => {
                 let keys = Object.keys(tasks)
-                if(keys.length > 0) {                
-                    dialog.showMessageBox(self.window, {
+                if(keys.length > 0) {
+                    const messagBoxResult = dialog.showMessageBox(self.window, {
                         "title": "Close With Pending Tasks",
                         "type": "question",
                         "message": `
@@ -122,8 +125,7 @@ class ProjectSession {
                     continue running until all windows are closed and the application
                     completely shuts down.`,
                         "buttons": ["Okay", "Cancel", "Stop Tasks"],
-                    },
-                    (response) => {
+                    }).then((response) => {
                         log.log("Choice", response)
                         if(response == 2) {
                             self.endTasks()
@@ -132,6 +134,7 @@ class ProjectSession {
                             self.reallyQuit()
                         }
                     })
+                    Promise.resolve(messagBoxResult)
                 } else {
                     log.log("No tasks pending. Quit right away.")
                     self.reallyQuit()
@@ -161,6 +164,7 @@ class ProjectSession {
     }
 
     createWindow(windowConfig, callback) {
+        log.log("Creating window", windowConfig, callback)
         let self = this
 
         if (windowConfig.projectBackendId === undefined) {
@@ -193,18 +197,18 @@ class ProjectSession {
 
         this.checkIfClose = true
         this.window.webContents.session.cookies.set(
-            projectSessionIdCookie, (error) => {
+            projectSessionIdCookie).then((error) => {
             if (error) {
                 log.log("Error while setting cookie", error)
             }
             self.window.webContents.session.cookies.set(
-                secretKeyCookie, (error) => {
+                secretKeyCookie).then((error) => {
                     if (error) {
                         log.log("Error while setting cookie", error)
                     }
                     self._prepareWindowForDisplay(callback)
             })
-        })            
+        })
 
         this.window.on("closed", (e) => {
             self.backendServer.removeSession(self);

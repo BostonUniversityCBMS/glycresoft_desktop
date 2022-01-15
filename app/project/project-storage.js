@@ -1,10 +1,9 @@
 "use strict"
 
-const {PROJECTS_KEY, PROJECT_FILE, VERSION} = require("./constants")
+const { PROJECTS_KEY } = require("./constants")
 
 const fs = require('fs')
 const os_path = require("path")
-const rimraf = require("rimraf")
 const log = require("electron-log")
 const storage = require("electron-json-storage")
 const Project = require("./project")
@@ -47,11 +46,15 @@ function AddProjectToLocalStorage(project, callback){
 }
 
 function LoadAllProjects(callback){
+    log.log("Loading all projects")
     return storage.get(PROJECTS_KEY, function(err, values){
+        log.log(`${PROJECTS_KEY} :=`, err, values)
         if(values === undefined || values === null || values.length === undefined){
             values = []
         }
-        callback(values.map(projectFromObject))
+        const projects = values.map(projectFromObject)
+        log.log("Projects being passed back", projects)
+        callback(projects)
     })
 }
 

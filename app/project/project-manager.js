@@ -1,17 +1,16 @@
 "use strict"
 
 const electron = require("electron")
-const app = electron.app
-const dialog = electron.dialog
-
-const ipcMain = electron.ipcMain
+const {app, dialog, ipcMain} = electron
 
 const Project = require("./project")
 const path = require("path")
 const storage = require("electron-json-storage")
 const log = require("electron-log")
 
-const {PROJECTS_KEY, PROJECT_FILE, VERSION, PROJECT_STRUCTURE_PATHS} = require("./constants")
+const {promisify} = require("util")
+
+const {PROJECTS_KEY, PROJECT_STRUCTURE_PATHS} = require("./constants")
 
 const {
     AddProjectToLocalStorage,
@@ -21,6 +20,7 @@ const {
     makeNewProjectDirectory
 } = require("./project-storage")
 
+storage.setDataPath(app.getPath("userData"))
 
 const ProjectSession = require("./project-session")
 
@@ -28,18 +28,18 @@ const BackendServer = require("../backend-server-control")
 
 const fs = require('fs')
 const rimraf = require("rimraf")
-const localforage = require("localforage")
 
 
 function projectFromObject(obj){
     return new Project(obj)
 }
 
+const DEFAULT_PROJECT_DIRECTORY = path.join(app.getPath("documents"), "GlycReSoft\ Projects")
+
 
 class ProjectSelectionWindow {
     constructor(options){
         this.backendServers = []
-        this.projects = []
         this.activeSessions = new Map()
 
         this.options = options || {}
@@ -48,14 +48,10 @@ class ProjectSelectionWindow {
         let self = this
 
         this.window = null
-        this.setupWindow()
         this._registerIPCHandlers()
+        this.setupWindow()
         this.hidden = false
         this.terminated = false
-
-        LoadAllProjects(function(projects){
-            self.projects = projects
-        })
 
         process.on("exit", function(){
             log.log("Process Exit: Cleaning up servers")
@@ -69,6 +65,7 @@ class ProjectSelectionWindow {
     }
 
     _createNewServer(project){
+        console.log("creating server for", project)
         let serverPort = this.options.port || 8001
         let maxTasks = this.options.maxTasks === undefined ? 1 : this.options.maxTasks
         let allowExternalUsers = this.options.allowExternalUsers === undefined ? false : this.options.allowExternalUsers
@@ -111,6 +108,9 @@ class ProjectSelectionWindow {
      * @param  {Project}
      */
     openWindowFor(project, options){
+        if (project === undefined) {
+            throw new Error("project cannot be undefined")
+        }
         let server = null
         let self = this
         if (this.defaultServer === undefined) {
@@ -185,23 +185,48 @@ class ProjectSelectionWindow {
         let self = this
         this.window = new electron.BrowserWindow({
             width: 800,
-            height: 1000
+            height: 1000,
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false,
+                enableRemoteModule: true,
+            },
         })
-
-        this.window.webContents.session.clearCache(() => {
-            self.window.loadURL(`file://${__dirname}/../static/html/select_project.html`)
+        console.log(`Loading ${__dirname}/../static/html/select_project.html`)
+        Promise.resolve(this.window.webContents.session.clearCache().then(() => {
+            self.window.loadFile(`${__dirname}/../static/html/select_project.html`)
             self._setupWindowCloseBehavior()
             self.hidden = false
-            self.terminated = false            
+            self.terminated = false
+        }))
+    }
+
+    async loadProjects() {
+        return promisify(storage.get)(PROJECTS_KEY).then((projects) => {
+            return projects.map(projectFromObject)
         })
     }
 
     _registerIPCHandlers(){
         let self = this
+        ipcMain.on("loadAllProjects", async (event) => {
+            return await self.loadProjects()
+        })
+        console.log("Setting up IPC handlers")
         ipcMain.on("createProject", (event, data) => self.createProject(event, data))
         ipcMain.on("deleteProject", (event, data) => self.deleteProject(event, data))
         ipcMain.on("openProject", (event, data) => self.openProject(event, data))
         ipcMain.on("SelectProjectDirectory", (event) => self._selectProjectDirectory(event))
+        ipcMain.on("signalDeleteProject", async (event, data) => {
+            const { index, path } = data
+            const choice = await dialog.showMessageBox(self.window, {
+                type: "question",
+                buttons: ["Yes", "No"],
+                title: 'Confirm',
+                message: `Are you sure you want to delete "${path}"?`
+            })
+            return choice
+        })
         ipcMain.on("openDevTools", (event) => self.window.webContents.openDevTools())
         ipcMain.on("openExistingProject", (event, path) => self.openProjectByPath(path))
         ipcMain.on("updatePort", (event, data) => {
@@ -215,13 +240,19 @@ class ProjectSelectionWindow {
         })
     }
 
-    _selectProjectDirectory(event){
-        let directory = dialog.showOpenDialog(this.window, {
+    async _selectProjectDirectory(event){
+        let directory = await dialog.showOpenDialog(this.window, {
             properties: ["openDirectory", "createDirectory"]
         })
-        
+        if(directory.canceled) {
+            return
+        } else {
+            directory = directory.filePaths[0]
+        }
+        console.log(directory)
         log.log("Selected", directory)
-        if (this.findProjectByPath(directory) !== null) {
+        let project = await this.findProjectByPath(directory)
+        if (project !== null) {
             event.sender.send("ProjectDirectorySelected", {
                 "directory": directory,
                 "is_new": false
@@ -235,7 +266,7 @@ class ProjectSelectionWindow {
                 event.sender.send("ProjectDirectorySelected", {
                     "directory": directory,
                     "is_new": false
-                })  
+                })
             } else {
                 event.sender.send("ProjectDirectorySelected", {
                     "directory": directory,
@@ -249,13 +280,21 @@ class ProjectSelectionWindow {
         event.sender.send("updateProjectDisplay")
     }
 
-    openProject(event, tag){
-        let project = this.projects[tag]
-        log.log("Open Project", project)
+    async getProject(tag) {
+        const projects = await this.loadProjects()
+        return projects[tag]
+    }
+
+    async openProject(event, tag){
+        let project = await this.getProject(tag)
+        if (project === undefined) {
+            throw new Error(`project undefined for ${tag}`)
+        }
+        log.log("Open Project", project, "tag", tag)
         this.createWindowForProject(project, {validate: false})
     }
 
-    openProjectByPath(path) {
+    async openProjectByPath(path) {
         let project = this.findProjectByPath(path)
         if (project === null) {
             project = new Project('', path)
@@ -264,14 +303,15 @@ class ProjectSelectionWindow {
         this.createProject(project, {validate: true})
     }
 
-    deleteProject(event, tag){
+    async deleteProject(event, tag){
         log.log("Calling deleteProject", tag)
-        let project = this.projects[tag]
+        let projects = await this.getProjects()
+        let project = projects[tag]
         log.log("Target Project", project)
         let self = this
         let repeatCount = 0
-        for (var i = 0; i < this.projects.length; i++) {
-            let otherProject = this.projects[i]
+        for (var i = 0; i < projects.length; i++) {
+            let otherProject = projects[i]
             if (i == tag) {
                 continue
             } else {
@@ -298,7 +338,7 @@ class ProjectSelectionWindow {
                 }
             }
             clearPaths(paths, () => {
-                self.updateProjectDisplay(event)  
+                self.updateProjectDisplay(event)
             })
         }
     }
@@ -307,18 +347,20 @@ class ProjectSelectionWindow {
         this.openWindowFor(project, options)
     }
 
-    _checkIfDuplicate(project) {
+    async _checkIfDuplicate(project) {
         let repeatCount = 0
-        for (var i = 0; i < this.projects.length; i++) {
-            let otherProject = this.projects[i]
+        const projects = await this.loadProjects()
+        for (var i = 0; i < projects.length; i++) {
+            let otherProject = projects[i]
             repeatCount += project.path == otherProject.path
         }
         return repeatCount > 0
     }
 
-    findProjectByPath(path) {
-        for (var i = 0; i < this.projects.length; i++) {
-            let project = this.projects[i]
+    async findProjectByPath(path) {
+        const projects = await this.loadProjects()
+        for (var i = 0; i < projects.length; i++) {
+            let project = projects[i]
             if (project.path == path) {
                 return project
             }
@@ -326,23 +368,22 @@ class ProjectSelectionWindow {
         return null
     }
 
-    createProject(event, obj, options){
+    async createProject(event, obj, options){
         options = options === undefined ? {} : options
         log.log("createProject", options)
         var project = new Project(obj)
-        if (this._checkIfDuplicate(project)) {
+        if (await this._checkIfDuplicate(project)) {
             log.log("Project is Duplicate")
-            project = this.findProjectByPath(project.path)
+            project = await this.findProjectByPath(project.path)
             log.log("Launching Server")
             options.validate = true
             this.createWindowForProject(project, options)
         } else {
             var self = this
-            this.projects.push(project)
-            AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
             log.log("Creating Project", project)
+            AddProjectToLocalStorage(project, () => self.updateProjectDisplay(event))
             this.createWindowForProject(project, options)
-            log.log("Launching Server")            
+            log.log("Launching Server")
         }
     }
 

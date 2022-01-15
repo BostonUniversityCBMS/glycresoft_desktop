@@ -13,7 +13,7 @@ class SVGSaver {
         this.canvas = $("<canvas></canvas>")[0];
         this.img = $("<img>");
         this.canvas.height = this.svgElement.height();
-        this.canvas.width = this.svgElement.width();     
+        this.canvas.width = this.svgElement.width();
     }
 
     getXMLString() {
@@ -68,7 +68,7 @@ function xmlToFile(path, data, callback) {
         if (callback !== undefined){
             callback(path)
         }
-    })   
+    })
 }
 
 
@@ -82,7 +82,7 @@ function saveImageDialog(callback, formats) {
         title: "Save File",
         defaultPath: "figure.png",
         filters: formats
-    }, callback)
+    }).then(callback)
 }
 
 
@@ -125,7 +125,7 @@ function nativeClientMultiFileDownloadDirectory(callback){
     dialog.showOpenDialog({
         title: "Select directory to save files in",
         properties: ["openDirectory", "createDirectory"]
-    }, (directoryPathList) => {
+    }).then((directoryPathList) => {
         directoryPath = directoryPathList[0]
         callback(directoryPath)
     })
@@ -135,7 +135,7 @@ window.nativeClientMultiFileDownloadDirectory = ExternNativeAPI.nativeClientMult
 
 
 function openDirectoryExternal(path) {
-    shell.openItem(path)
+    shell.openPath(path)
 }
 
 window.openDirectoryExternal = ExternNativeAPI.openDirectoryExternal = openDirectoryExternal

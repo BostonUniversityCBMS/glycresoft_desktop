@@ -41,7 +41,6 @@ function showProjectManager(callback){
 
 }
 
-
 function createProjectManager() {
     if(ProjectSelectionController === null){
         ProjectSelectionController = new project.ProjectSelectionWindow({
@@ -59,16 +58,21 @@ function createProjectManager() {
     })
 }
 
-const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {
+// const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {
+//     log.log("Application Run Invocation", argv, workingDirectory)
+//     showProjectManager()
+// })
+
+const gotLock = app.requestSingleInstanceLock()
+app.on('second-instance', (event, argv, workingDirectory, additionalData) => {
     log.log("Application Run Invocation", argv, workingDirectory)
     showProjectManager()
 })
 
-if (shouldQuit){
+if (!gotLock){
+    console.log("Secondary Instance, Quitting")
     app.quit()
-    return
+} else {
+    log.log("Application Setup Done")
+    app.on("ready", createProjectManager)
 }
-
-app.on("ready", createProjectManager)
-
-log.log("Application Setup Done")
