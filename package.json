@@ -24,7 +24,8 @@
     "productName": "GlycReSoft",
     "win": {
       "icon": "img/logo.ico",
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "${productName}_${version}.${ext}"
     },
     "publish": [
       {
