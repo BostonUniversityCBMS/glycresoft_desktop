@@ -177,7 +177,7 @@ class ProjectSession {
         windowOptions.webPreferences.session = this.webSession
 
         this.window = new electron.BrowserWindow(windowOptions)
-
+        this.window.removeMenu()
         //Routes all requests this session makes to the correct
         //project's Application Manager instance on the server
         let projectSessionIdCookie = {

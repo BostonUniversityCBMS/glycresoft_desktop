@@ -3,6 +3,9 @@
   "version": "0.4.5",
   "description": "",
   "main": "app/index.js",
+  "repository": {
+    "url": "https://github.com/BostonUniversityCBMS/glycresoft_desktop"
+  },
   "private": true,
   "scripts": {
     "include-server": "bash -c \"mkdir dist/win-unpacked/resources/bin && cp -r server/win64/glycresoft-cli dist/win-unpacked/resources/bin\"",
@@ -11,33 +14,54 @@
     "clean": "rimraf dist",
     "clean:win": "rimraf dist/win",
     "compile": "echo compiling",
-    "pack": "npm run compile && build --win dir",
+    "pack": "npm run compile && electron-builder --dir --win",
     "dist": "npm run compile && build",
     "release": "npm run compile && build",
     "dist:win64": "./node_modules/.bin/build --platform win32 --arch x64"
   },
   "build": {
+    "appId": "com.cbms.glycresoft",
+    "productName": "GlycReSoft",
     "win": {
-      "icon": "img/logo.ico"
+      "icon": "img/logo.ico",
+      "target": "nsis"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "BostonUniversityCBMS",
+        "repo": "glycresoft_desktop"
+      }
+    ],
     "squirrelWindows": {
       "iconUrl": "https://raw.githubusercontent.com/mobiusklein/glycresoft_desktop/master/img/logo.ico"
+    },
+    "nsis": {
+      "oneClick": false
     }
   },
   "dependencies": {
     "electron-json-storage": "^4.5.0",
     "electron-log": "^4.4.4",
     "electron-squirrel-startup": "^1.0.0",
-    "localforage": "^1.4.2",
+    "electron-updater": "^4.6.1",
     "lodash": "^4.17.4",
-    "rimraf": "^2.5.2"
+    "rimraf": "^2.5.2",
+    "hammerjs": "^2.0.8",
+    "jquery": "^3.0.0",
+    "localforage": "^1.5.5",
+    "package.json": "^2.0.1",
+    "portfinder": "^1.0.3"
   },
   "devDependencies": {
     "electron": "^12.2.3",
-    "electron-builder": "^22.14.5",
     "electron-packager": "^15.4.0",
     "electron-winstaller": "^5.0.0",
     "png-to-ico": "^1.0.2",
     "winresourcer": "^0.9.0"
+  },
+  "author": {
+    "name": "Joshua Klein",
+    "email": "jaklein@bu.edu"
   }
 }

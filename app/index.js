@@ -7,10 +7,7 @@ app.disableHardwareAcceleration()
 const log = require("electron-log")
 log.transports.file.level = 'info'
 
-const {appUpdater} = require('./update-check');
-
-
-if(require('electron-squirrel-startup')) return;
+const {autoUpdater} = require('./update-check');
 
 const squirrel = require("./squirrel")
 const project = require("./project")
@@ -50,13 +47,34 @@ function createProjectManager() {
     }
     const page = ProjectSelectionController.window.webContents
     page.once('did-frame-finish-load', () => {
-        const checkOS = isWindowsOrmacOS()
-        if (checkOS) {
-            log.log("Checking for updates")
-            appUpdater()
-        }
+        autoUpdater.checkForUpdatesAndNotify()
     })
 }
+
+
+autoUpdater.on('checking-for-update', () => {
+    log.log('Checking for update...');
+})
+autoUpdater.on('update-available', (info) => {
+    log.log('Update available.');
+})
+autoUpdater.on('update-not-available', (info) => {
+    log.log('Update not available.');
+})
+autoUpdater.on('error', (err) => {
+    log.log('Error in auto-updater. ' + err);
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+    let log_message = "Download speed: " + progressObj.bytesPerSecond;
+    log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+    log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+    log.log(log_message);
+})
+autoUpdater.on('update-downloaded', (info) => {
+    log.log('Update downloaded');
+});
+
 
 // const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {
 //     log.log("Application Run Invocation", argv, workingDirectory)

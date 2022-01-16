@@ -126,8 +126,12 @@ function nativeClientMultiFileDownloadDirectory(callback){
         title: "Select directory to save files in",
         properties: ["openDirectory", "createDirectory"]
     }).then((directoryPathList) => {
-        directoryPath = directoryPathList[0]
-        callback(directoryPath)
+        console.log("Received", directoryPathList)
+        if (!directoryPathList.canceled) {
+            const directoryPath = directoryPathList.filePaths[0]
+            console.log("Calling nativeClientMultiFileDownloadDirectory callback with", directoryPath)
+            callback(directoryPath)
+        }
     })
 }
 
@@ -135,6 +139,7 @@ window.nativeClientMultiFileDownloadDirectory = ExternNativeAPI.nativeClientMult
 
 
 function openDirectoryExternal(path) {
+    console.log(`Opening External Path`, path)
     shell.openPath(path)
 }
 

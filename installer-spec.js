@@ -1,3 +1,5 @@
+/// This script is way out of date and is kept around for historical record until the new method is fully integrated.
+
 var electronInstaller = require('electron-winstaller');
 
 resultPromise = electronInstaller.createWindowsInstaller({

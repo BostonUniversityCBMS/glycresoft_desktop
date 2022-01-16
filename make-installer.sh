@@ -1,0 +1,1 @@
+electron-builder --prepackaged dist/win-unpacked

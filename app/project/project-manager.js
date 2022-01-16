@@ -192,6 +192,7 @@ class ProjectSelectionWindow {
                 enableRemoteModule: true,
             },
         })
+        this.window.removeMenu()
         console.log(`Loading ${__dirname}/../static/html/select_project.html`)
         Promise.resolve(this.window.webContents.session.clearCache().then(() => {
             self.window.loadFile(`${__dirname}/../static/html/select_project.html`)
