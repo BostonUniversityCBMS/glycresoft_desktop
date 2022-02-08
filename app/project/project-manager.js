@@ -204,6 +204,10 @@ class ProjectSelectionWindow {
 
     async loadProjects() {
         return promisify(storage.get)(PROJECTS_KEY).then((projects) => {
+            log.log("Building projects", projects)
+            if (projects instanceof Object) {
+                projects = Object.values(projects)
+            }
             return projects.map(projectFromObject)
         })
     }
@@ -254,6 +258,7 @@ class ProjectSelectionWindow {
         log.log("Selected", directory)
         let project = await this.findProjectByPath(directory)
         if (project !== null) {
+            log.log("Opening project found project", project, directory)
             event.sender.send("ProjectDirectorySelected", {
                 "directory": directory,
                 "is_new": false
@@ -264,11 +269,13 @@ class ProjectSelectionWindow {
             // should add it to the index. Currently, the program does this correctly,
             // but I haven't traced out why.
             if (fs.existsSync(directory) && fs.existsSync(temp.storePath)) {
+                log.log("Opening project new project with existing directory", temp.storePath, directory)
                 event.sender.send("ProjectDirectorySelected", {
                     "directory": directory,
                     "is_new": false
                 })
             } else {
+                log.log("Creating project new project without existing directory", temp.storePath, directory)
                 event.sender.send("ProjectDirectorySelected", {
                     "directory": directory,
                     "is_new": true

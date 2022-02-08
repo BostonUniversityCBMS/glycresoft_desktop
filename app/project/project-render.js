@@ -23,8 +23,8 @@ const fs = require("fs")
 
 
 function selectDirectory(callback){
-    ipcRenderer.send("SelectProjectDirectory")
     ipcRenderer.once("ProjectDirectorySelected", callback)
+    ipcRenderer.send("SelectProjectDirectory")
 }
 
 
@@ -135,7 +135,7 @@ class ProjectSelectionViewControl {
     }
 
     _makeProjectFromDOM(){
-        var path = $("#project-location-path").val().trim()
+        let path = $("#project-location-path").val().trim()
         // var name = $("#project-name").val().trim()
         let name = ""
         if (path === "") {
@@ -147,6 +147,7 @@ class ProjectSelectionViewControl {
                 mkdirRecursiveSync(path)
             }
         }
+        log.log("Making project from", path, name)
         if (name.trim() !== "") {
             $("#project-name").val("")
             $("#project-location-path").val("")
@@ -211,6 +212,7 @@ class ProjectSelectionViewControl {
     selectProjectLocation(){
         const self = this
         selectDirectory((event, directoryQuery) => {
+            log.log("Feeding directory", directoryQuery.directory)
             $("#project-location-path").val(directoryQuery.directory)
             if (!directoryQuery.is_new) {
                 // Some special logic here if necessary, reason lost to time why it is empty.

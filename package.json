@@ -1,6 +1,6 @@
 {
   "name": "GlycReSoft",
-  "version": "0.4.5",
+  "version": "0.4.7",
   "description": "",
   "main": "app/index.js",
   "repository": {
@@ -25,15 +25,15 @@
     "win": {
       "icon": "img/logo.ico",
       "target": "nsis",
-      "artifactName": "${productName}_${version}.${ext}"
+      "artifactName": "${productName}_${version}.${ext}",
+      "publish": [
+        {
+          "provider": "github",
+          "owner": "BostonUniversityCBMS",
+          "repo": "glycresoft_desktop"
+        }
+      ]
     },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "BostonUniversityCBMS",
-        "repo": "glycresoft_desktop"
-      }
-    ],
     "squirrelWindows": {
       "iconUrl": "https://raw.githubusercontent.com/mobiusklein/glycresoft_desktop/master/img/logo.ico"
     },
@@ -44,7 +44,6 @@
   "dependencies": {
     "electron-json-storage": "^4.5.0",
     "electron-log": "^4.4.4",
-    "electron-squirrel-startup": "^1.0.0",
     "electron-updater": "^4.6.1",
     "lodash": "^4.17.4",
     "rimraf": "^2.5.2",

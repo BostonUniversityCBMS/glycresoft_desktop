@@ -76,10 +76,6 @@ autoUpdater.on('update-downloaded', (info) => {
 });
 
 
-// const shouldQuit = app.makeSingleInstance((argv, workingDirectory) => {
-//     log.log("Application Run Invocation", argv, workingDirectory)
-//     showProjectManager()
-// })
 
 const gotLock = app.requestSingleInstanceLock()
 app.on('second-instance', (event, argv, workingDirectory, additionalData) => {
