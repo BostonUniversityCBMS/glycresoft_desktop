@@ -207,6 +207,13 @@ class ProjectSelectionViewControl {
         $("#allow-external-users").change(function(event) {
             self._updateAllowExternalUsers(this)
         })
+
+        ipcRenderer.on("waiting-for-server", (event, data) => {
+            const { count } = data
+            if (count % 10 == 0) {
+                self.flashMessage(`Waiting for server...`, "blue", 1000)
+            }
+        })
     }
 
     selectProjectLocation(){
@@ -225,27 +232,28 @@ class ProjectSelectionViewControl {
         $("#config-options input").prop("disabled", true)
     }
 
-    flashMessage(message, color){
+    flashMessage(message, color, duration){
         if(color === undefined){
             color = 'black'
         }
-        Materialize.toast(message, 4000, color)
+        duration = duration ? duration : 4000
+        Materialize.toast(message, duration, color)
     }
 
-    deleteProject(){
+    async deleteProject(){
         const selectProjectTag = $("select#existing-project");
-        this.signalDeleteProject(selectProjectTag.val())
+        return this.signalDeleteProject(selectProjectTag.val())
     }
 
-    openProject(){
+    async openProject(){
         const selectProjectTag = $("select#existing-project");
-        this.signalOpenProject(selectProjectTag.val())
         this.disableConfigWidgets()
+        return this.signalOpenProject(selectProjectTag.val())
     }
 
-    signalOpenProject(index) {
-        ipcRenderer.send("openProject", index)
+    async signalOpenProject(index) {
         this.disableConfigWidgets()
+        return ipcRenderer.send("openProject", index)
     }
 
     async loadProjects() {
@@ -254,12 +262,12 @@ class ProjectSelectionViewControl {
         })
     }
 
-    signalOpenExistingProject(path) {
-        ipcRenderer.send("openExistingProject", path)
+    async signalOpenExistingProject(path) {
+        return ipcRenderer.send("openExistingProject", path)
     }
 
-    signalDeleteProject(index) {
-        ipcRenderer.invoke("signalDeleteProject", {index, path: this.projects[index].path}).then((choice) => {
+    async signalDeleteProject(index) {
+        return ipcRenderer.invoke("signalDeleteProject", {index, path: this.projects[index].path}).then((choice) => {
             if (choice === 0) {
                 this.flashMessage(`Removing project ${this.projects[index].path}...`, 'red')
                 ipcRenderer.send("deleteProject", index)
@@ -267,15 +275,15 @@ class ProjectSelectionViewControl {
         })
     }
 
-    openOrCreateProject(){
+    async openOrCreateProject(){
         let proj = this._makeProjectFromDOM()
         log.log("Created Project", proj)
         if (proj.name === "" && proj.path == DEFAULT_PROJECT_DIRECTORY) {
             this.flashMessage("You must provide a project name", 'red')
-            return
         } else {
-            ipcRenderer.send("createProject", proj)
+            this.flashMessage(`Creating project ${proj.name || proj.path}`, 'green')
             this.disableConfigWidgets()
+            return ipcRenderer.send("createProject", proj)
         }
     }
 
@@ -319,6 +327,7 @@ class ProjectSelectionViewControl {
         project.index = index
 
         handle.click((event) => {
+            self.flashMessage("Opening project...", "green")
             self.signalOpenProject(index)
         })
 

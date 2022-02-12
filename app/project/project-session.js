@@ -1,15 +1,10 @@
-const http = require("http")
-const querystring = require("querystring")
+"use strict"
 const path = require('path')
-const child_process = require("child_process")
 const deepClone = require('lodash/cloneDeep')
 const electron = require("electron")
 const {session} = require('electron')
 const log = require("electron-log")
-const app = electron.app
-const dialog = electron.dialog
-const ipcMain = electron.ipcMain
-const net = electron.net
+const {dialog, ipcMain, net} = electron
 
 const WINDOW_OPTIONS = {
     title: "GlycReSoft",
@@ -255,14 +250,14 @@ class ProjectSession {
         })
     }
 
-    openWindow(callback, options) {
+    openWindow(projectWindowReadyCallback, options, waitingForSeverCallback) {
         var self = this
         let task = () => {
             self.backendServer.registerProjectSession(self.project, (registration) => {
                 let windowConfig = {}
                 windowConfig.projectBackendId = registration.project_id
                 self.backendServer.addSession(self)
-                self.createWindow(windowConfig, callback)
+                self.createWindow(windowConfig, projectWindowReadyCallback)
             }, options)
         }
 
@@ -272,7 +267,7 @@ class ProjectSession {
             this.backendServer.launchServer(() => {
                 self.backendServer.waitForServer(0, () => {
                     task()
-                })
+                }, waitingForSeverCallback)
             })
         }
     }

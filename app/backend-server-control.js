@@ -6,6 +6,7 @@ const querystring = require("querystring")
 const path = require('path')
 const child_process = require("child_process")
 
+const { ipcMain } = require("electron")
 const log = require("electron-log")
 
 const serverConfig = require("./server-config").configManager
@@ -83,22 +84,24 @@ class BackendServer {
             n = 0
         }
         if (n > 250) {
-            throw new Error(`Server not launched after ${n} attempts`)
+            throw new Error(`Server not started after ${n} attempts`)
         }
         // Guard against unavailable ports
         if(this.port === undefined){
             let self = this
+            log.log("Failed to assign port, waiting for port assignment")
             setTimeout(() => self.launchServer(callback, n + 1), 1250)
         } else {
-            log.log(this.constructServerProcessCall())
-            let child = child_process.exec(this.constructServerProcessCall())
+            const serverProcessCmd = this.constructServerProcessCall()
+            log.log(`Executing ${serverProcessCmd}`)
+            let child = child_process.exec(serverProcessCmd)
             child.stdout.on("data", function(){
                 log.log(arguments[0].trim())
             })
             child.stderr.on("data", function(){
                 log.log(arguments[0].trim())
             })
-            log.log("Server Launched")
+            log.log("Server Started")
             this.process = child
             callback()
         }
@@ -164,21 +167,20 @@ class BackendServer {
         req.end();
     }
 
-    waitForServer(count, callback){
-        var url = this.url
-        var self = this
+    waitForServer(count, onServerReadyCallback, onServerWaitingCallback){
+        const self = this
         count = count === undefined ? 1 : count + 1;
         if(count > MAX_RETRIES){
             throw new Error("Server Not Ready After " + count + " Tries")
         }
-        http.get(self.url, function(response){
-            var retry = false
+        http.get(self.url, (response) => {
+            let retry = false
             if(response.statusCode == 200 || response.statusCode == 302){
                 log.log("Connection Established", self.url)
                 try{
-                    if(callback !== undefined){
-                        callback(self)
-                    }                
+                    if(onServerReadyCallback !== undefined){
+                        onServerReadyCallback(self)
+                    }
                 } catch(error){
                     retry = true
                     log.log(error)
@@ -187,11 +189,14 @@ class BackendServer {
                 retry = true
             }
             if(retry){
-                self.waitForServer(count, callback)
+                self.waitForServer(count, onServerReadyCallback, onServerWaitingCallback)
             }
-        }).on('error', function(e) {
+        }).on('error', () => {
             log.log("Waiting For Server... ", count)
-            setTimeout(function(){self.waitForServer(count, callback)}, 150)
+            if (onServerWaitingCallback !== undefined) {
+                onServerWaitingCallback(count)
+            }
+            setTimeout(() => { self.waitForServer(count, onServerReadyCallback, onServerWaitingCallback) }, 150)
         });
     }
 
@@ -199,11 +204,13 @@ class BackendServer {
         log.log("Terminating ", this.url, this.sessionCounter, this.process.pid)
         let rq = http.request({host:this.host, "port": this.port, protocol: this.protocol,
                                path: "/internal/shutdown", method: "POST"})
-        rq.on("data", function(data){
+        rq.on("data", (data) => {
             log.log("terminateServer response", arguments)
         })
-        rq.on("error", function(err){
-            log.log("terminateServer failed")
+        rq.on("error", (err) => {
+            if (err.code !== 'ECONNRESET') {
+                log.log("terminateServer failed", err)
+            }
         })
         rq.end()
     }
@@ -215,4 +222,4 @@ BackendServer.prototype.EXECUTABLE = EXECUTABLE
 
 
 module.exports = BackendServer
-    
+

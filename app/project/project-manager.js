@@ -65,7 +65,7 @@ class ProjectSelectionWindow {
     }
 
     _createNewServer(project){
-        console.log("creating server for", project)
+        log.log("Creating server for", project)
         let serverPort = this.options.port || 8001
         let maxTasks = this.options.maxTasks === undefined ? 1 : this.options.maxTasks
         let allowExternalUsers = this.options.allowExternalUsers === undefined ? false : this.options.allowExternalUsers
@@ -94,9 +94,9 @@ class ProjectSelectionWindow {
      * @return {BackendServer}
      */
     createServer(project){
-        log.log("Creating Server...")
+        log.log("Creating server controller...")
         let server = this._createNewServer(project)
-        log.log("Server Created.")
+        log.log("Server controller created")
         this.backendServers.push(server)
         return server
     }
@@ -123,16 +123,21 @@ class ProjectSelectionWindow {
             nativeClientKey: this.nativeClientKey
         })
 
-        function callback(projectSession){
-            projectSession.window.on("closed", function(event) {
+        const sessionReadyCallback = (projectSession) =>{
+            projectSession.window.on("closed", (event) => {
                 self.removeSession(projectSession)
                 if(self.terminated) {
                     self.shutdownIfAllSessionsClosed()
                 }
             })
         }
+
+        const waitingForSeverCallback = (count) => {
+            self.window.webContents.send("waiting-for-server", {count})
+        }
+
         log.log("Opening Window...", options)
-        session.openWindow(callback, options)
+        session.openWindow(sessionReadyCallback, options, waitingForSeverCallback)
         this.activeSessions.set(session.instanceId, session)
     }
 
