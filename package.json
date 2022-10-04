@@ -10,7 +10,7 @@
   "scripts": {
     "include-server": "bash -c \"mkdir dist/win-unpacked/resources/bin && cp -r server/win64/glycresoft-cli dist/win-unpacked/resources/bin\"",
     "start": "npm install && npm run compile && electron ./app",
-    "drun": "electron ./app",
+    "drun": "electron --trace-warnings --unhandled-rejections=strict ./app",
     "clean": "rimraf dist",
     "clean:win": "rimraf dist/win",
     "compile": "echo compiling",

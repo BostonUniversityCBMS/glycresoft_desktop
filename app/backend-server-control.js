@@ -202,11 +202,24 @@ class BackendServer {
 
     terminateServer() {
         log.log("Terminating ", this.url, this.sessionCounter, this.process.pid)
-        let rq = http.request({host:this.host, "port": this.port, protocol: this.protocol,
-                               path: "/internal/shutdown", method: "POST"})
-        rq.on("data", (data) => {
-            log.log("terminateServer response", arguments)
-        })
+        let rq = http.request({host: this.host, "port": this.port, protocol: this.protocol,
+                               path: "/internal/shutdown", method: "POST"},
+            (res) => {
+                console.log(`STATUS: ${res.statusCode}`)
+                res.setEncoding('utf8')
+                res.on("data", (data) => {
+                    log.log("terminateServer response", arguments)
+                })
+                res.on("error", (err) => {
+                    if (err.code !== 'ECONNRESET') {
+                        log.log("terminateServer failed", err)
+                    }
+                })
+                res.on("end", () => {
+                    log.log("Finished sending terminate")
+                })
+            }
+        )
         rq.on("error", (err) => {
             if (err.code !== 'ECONNRESET') {
                 log.log("terminateServer failed", err)

@@ -53,24 +53,26 @@ class ProjectSession {
         } catch (err) {
 
         }
-        return new net.ClientRequest(options)
+        return new net.request(options)
     }
 
     pendingTasks(callback){
         let options = {
             url: `${this.url}/api/tasks`,
         }
+        log.log(`Task URL: ${options.url}`)
         let request = this.request(options)
         let buffer = []
         request.on("response", (response) => {
-            response.on("data", (chunk) => {
-                buffer.push(chunk)
-            })
             response.on("end", () => {
                 let result = JSON.parse(buffer.join(""))
+                log.log("Collected Tasks", result)
                 if(callback !== undefined) {
                     callback(result)
                 }
+            })
+            response.on("data", (chunk) => {
+                buffer.push(chunk)
             })
         })
         request.end()
@@ -110,6 +112,9 @@ class ProjectSession {
             e.preventDefault()
 
             self.pendingTasks((tasks) => {
+                if (!tasks) {
+                    tasks = {}
+                }
                 let keys = Object.keys(tasks)
                 if(keys.length > 0) {
                     const messagBoxResult = dialog.showMessageBox(self.window, {
