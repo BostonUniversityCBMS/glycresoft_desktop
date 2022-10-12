@@ -75,12 +75,12 @@ function xmlToFile(path, data, callback) {
 function saveImageDialog(callback, formats) {
     if (formats === undefined) {
         formats = [
-            { name: 'PNG', extensions: ['png']}
+            { name: 'SVG', extensions: ['dvg']}
         ]
     }
     dialog.showSaveDialog({
         title: "Save File",
-        defaultPath: "figure.png",
+        defaultPath: "figure.dvg",
         filters: formats
     }).then(callback)
 }
@@ -89,7 +89,8 @@ function saveImageDialog(callback, formats) {
 function saveSVGToFile(svgElement, callback) {
     const saver = new SVGSaver($(svgElement))
     saver.draw()
-    saveImageDialog(function(path){
+    saveImageDialog(function(pathResult){
+        const path = pathResult.filePath
         if (path === undefined) {
             return
         }
@@ -103,7 +104,7 @@ function saveSVGToFile(svgElement, callback) {
         }
 
     }, [
-        { name: 'PNG', extensions: ['png']},
+        // { name: 'PNG', extensions: ['png']},
         { name: 'SVG', extensions: ['svg']}
     ])
 }
