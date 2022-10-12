@@ -75,12 +75,12 @@ function xmlToFile(path, data, callback) {
 function saveImageDialog(callback, formats) {
     if (formats === undefined) {
         formats = [
-            { name: 'SVG', extensions: ['dvg']}
+            { name: 'SVG', extensions: ['svg']}
         ]
     }
     dialog.showSaveDialog({
         title: "Save File",
-        defaultPath: "figure.dvg",
+        defaultPath: "figure.svg",
         filters: formats
     }).then(callback)
 }
