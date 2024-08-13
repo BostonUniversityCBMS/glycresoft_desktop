@@ -34,8 +34,6 @@ function projectFromObject(obj){
     return new Project(obj)
 }
 
-const DEFAULT_PROJECT_DIRECTORY = path.join(app.getPath("documents"), "GlycReSoft\ Projects")
-
 
 class ProjectSelectionWindow {
     constructor(options){

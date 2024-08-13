@@ -196,7 +196,7 @@ class BackendServer {
             if (onServerWaitingCallback !== undefined) {
                 onServerWaitingCallback(count)
             }
-            setTimeout(() => { self.waitForServer(count, onServerReadyCallback, onServerWaitingCallback) }, 1000)
+            setTimeout(() => { self.waitForServer(count, onServerReadyCallback, onServerWaitingCallback) }, 10000)
         });
     }
 
